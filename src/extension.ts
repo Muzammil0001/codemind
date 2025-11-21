@@ -12,6 +12,10 @@ import { agentOrchestrator } from './agents/AgentOrchestrator';
 import { fileOperationManager } from './operations/FileOperationManager';
 import { backupManager } from './operations/BackupManager';
 import { terminalExecutor } from './terminal/TerminalExecutor';
+import { memoryEngine } from './memory/MemoryEngine';
+import { inlineSuggestionProvider } from './suggestions/InlineSuggestionProvider';
+import { imageToCodeAgent } from './agents/ImageToCodeAgent';
+import { commitMessageGenerator } from './features/CommitMessageGenerator';
 
 let permissionEngine: PermissionEngine;
 
@@ -26,11 +30,20 @@ export async function activate(context: vscode.ExtensionContext) {
         fileOperationManager.setPermissionEngine(permissionEngine);
         terminalExecutor.setPermissionEngine(permissionEngine);
 
-        // Initialize backup manager
+        // Initialize backup manager and memory engine
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (workspaceRoot) {
             await backupManager.initialize(workspaceRoot);
+            await memoryEngine.initialize(workspaceRoot);
         }
+
+        // Register inline suggestion provider
+        context.subscriptions.push(
+            vscode.languages.registerInlineCompletionItemProvider(
+                { pattern: '**' },
+                inlineSuggestionProvider
+            )
+        );
 
         // Register commands
         registerCommands(context);
@@ -271,10 +284,26 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Image to code command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.imageToCode', async () => {
-            vscode.window.showInformationMessage('Image to Code - Coming soon!');
+            await imageToCodeAgent.convertScreenshot();
         })
     );
 
+    // Generate commit message command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codemind.generateCommitMessage', async () => {
+            await commitMessageGenerator.showCommitMessageDialog();
+        })
+    );
+
+    // Toggle inline suggestions command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codemind.toggleInlineSuggestions', async () => {
+            const enabled = inlineSuggestionProvider.toggle();
+            vscode.window.showInformationMessage(
+                `Inline Suggestions ${enabled ? 'enabled' : 'disabled'}`
+            );
+        })
+    );
     logger.info('Commands registered');
 }
 

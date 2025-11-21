@@ -9,6 +9,7 @@ import { coderAgent } from './CoderAgent';
 import { reviewerAgent } from './ReviewerAgent';
 import { testAgent } from './TestAgent';
 import { documentationAgent } from './DocumentationAgent';
+import { imageToCodeAgent } from './ImageToCodeAgent';
 import { logger } from '../utils/logger';
 import PQueue from 'p-queue';
 import { configManager } from '../config/settings';
@@ -34,6 +35,7 @@ export class AgentOrchestrator {
         this.agents.set('reviewer', reviewerAgent);
         this.agents.set('tester', testAgent);
         this.agents.set('documenter', documentationAgent);
+        this.agents.set('image-to-code', imageToCodeAgent); // Added Image-to-Code agent registration
         // More agents will be registered here as they're created
 
         logger.info(`Registered ${this.agents.size} agents`);
