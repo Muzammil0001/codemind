@@ -7,6 +7,11 @@ import { logger } from './utils/logger';
 import { configManager } from './config/settings';
 import { modelRouter } from './ai/ModelRouter';
 import { PermissionEngine } from './safety/PermissionEngine';
+import { projectBrain } from './brain/ProjectBrain';
+import { agentOrchestrator } from './agents/AgentOrchestrator';
+import { fileOperationManager } from './operations/FileOperationManager';
+import { backupManager } from './operations/BackupManager';
+import { terminalExecutor } from './terminal/TerminalExecutor';
 
 let permissionEngine: PermissionEngine;
 
@@ -16,6 +21,16 @@ export async function activate(context: vscode.ExtensionContext) {
     try {
         // Initialize core systems
         permissionEngine = new PermissionEngine(context);
+
+        // Connect permission engine to file operations and terminal
+        fileOperationManager.setPermissionEngine(permissionEngine);
+        terminalExecutor.setPermissionEngine(permissionEngine);
+
+        // Initialize backup manager
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (workspaceRoot) {
+            await backupManager.initialize(workspaceRoot);
+        }
 
         // Register commands
         registerCommands(context);
@@ -35,6 +50,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     logger.info('CodeMind AI extension deactivating...');
+    terminalExecutor.disposeTerminal();
+    projectBrain.clear();
     logger.dispose();
 }
 
