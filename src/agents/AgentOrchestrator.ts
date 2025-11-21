@@ -59,14 +59,14 @@ export class AgentOrchestrator {
             }
 
             // Execute task
-            const result = await this.taskQueue.add(() => agent.run(task));
+            const result = await this.taskQueue.add(() => agent.run(task)) as AgentResult;
 
             // Update task status
             task.status = 'completed';
             task.completedAt = Date.now();
             task.result = result;
 
-            return result!;
+            return result;
         } catch (error) {
             task.status = 'failed';
             task.error = (error as Error).message;

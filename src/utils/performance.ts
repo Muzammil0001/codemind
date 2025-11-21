@@ -30,7 +30,7 @@ class PerformanceMonitor {
         }
 
         const duration = Date.now() - startTime;
-        const metadata = this.activeTimers.get(`${name}_metadata`) as Record<string, any> | undefined;
+        const metadata = this.activeTimers.get(`${name}_metadata`) as any;
 
         this.metrics.push({
             name,

@@ -118,7 +118,7 @@ export class PlannerAgent extends BaseAgent {
                 steps: [{
                     id: 'step-1',
                     description: 'Execute task',
-                    action: 'file-modify',
+                    action: 'code-generation' as any,
                     dependencies: [],
                     estimatedDuration: 5000,
                     riskLevel: 'moderate'

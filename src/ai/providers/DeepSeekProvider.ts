@@ -122,52 +122,52 @@ export class DeepSeekProvider extends BaseProvider {
                                 // Ignore parse errors
                             }
                         }
-                    });
-            });
+                    }
+                });
 
-            response.data.on('end', () => {
-                const latency = Date.now() - startTime;
-                const tokensUsed = this.estimateTokens(fullContent);
+                response.data.on('end', () => {
+                    const latency = Date.now() - startTime;
+                    const tokensUsed = this.estimateTokens(fullContent);
 
-                resolve(this.createResponse(
-                    fullContent,
-                    request.model || 'deepseek-coder',
-                    tokensUsed,
-                    latency
-                ));
-            });
+                    resolve(this.createResponse(
+                        fullContent,
+                        request.model || 'deepseek-coder',
+                        tokensUsed,
+                        latency
+                    ));
+                });
 
-            response.data.on('error', (error: Error) => {
-                reject(error);
+                response.data.on('error', (error: Error) => {
+                    reject(error);
+                });
             });
-        });
-    } catch(error) {
-        this.handleError(error, 'streaming');
+        } catch (error) {
+            this.handleError(error, 'streaming');
+        }
     }
-}
 
-  private buildMessages(request: AIRequest): any[] {
-    const messages: any[] = [];
+    private buildMessages(request: AIRequest): any[] {
+        const messages: any[] = [];
 
-    if (request.systemPrompt) {
+        if (request.systemPrompt) {
+            messages.push({
+                role: 'system',
+                content: request.systemPrompt
+            });
+        }
+
+        if (request.context && request.context.length > 0) {
+            messages.push({
+                role: 'system',
+                content: `Context:\n${request.context.join('\n')}`
+            });
+        }
+
         messages.push({
-            role: 'system',
-            content: request.systemPrompt
+            role: 'user',
+            content: request.prompt
         });
+
+        return messages;
     }
-
-    if (request.context && request.context.length > 0) {
-        messages.push({
-            role: 'system',
-            content: `Context:\n${request.context.join('\n')}`
-        });
-    }
-
-    messages.push({
-        role: 'user',
-        content: request.prompt
-    });
-
-    return messages;
-}
 }

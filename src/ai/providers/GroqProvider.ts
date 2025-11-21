@@ -127,54 +127,54 @@ export class GroqProvider extends BaseProvider {
                                 // Ignore parse errors for incomplete chunks
                             }
                         }
-                    });
+                    }
+                });
+
+                response.data.on('end', () => {
+                    const latency = Date.now() - startTime;
+                    const tokensUsed = this.estimateTokens(fullContent);
+
+                    logger.info(`Groq streaming completed in ${latency}ms`);
+
+                    resolve(this.createResponse(
+                        fullContent,
+                        request.model || 'llama-3.1-70b-versatile',
+                        tokensUsed,
+                        latency
+                    ));
+                });
+
+                response.data.on('error', (error: Error) => {
+                    reject(error);
+                });
             });
-
-            response.data.on('end', () => {
-                const latency = Date.now() - startTime;
-                const tokensUsed = this.estimateTokens(fullContent);
-
-                logger.info(`Groq streaming completed in ${latency}ms`);
-
-                resolve(this.createResponse(
-                    fullContent,
-                    request.model || 'llama-3.1-70b-versatile',
-                    tokensUsed,
-                    latency
-                ));
-            });
-
-            response.data.on('error', (error: Error) => {
-                reject(error);
-            });
-        });
-    } catch(error) {
-        this.handleError(error, 'streaming');
+        } catch (error) {
+            this.handleError(error, 'streaming');
+        }
     }
-}
 
-  private buildMessages(request: AIRequest): any[] {
-    const messages: any[] = [];
+    private buildMessages(request: AIRequest): any[] {
+        const messages: any[] = [];
 
-    if (request.systemPrompt) {
+        if (request.systemPrompt) {
+            messages.push({
+                role: 'system',
+                content: request.systemPrompt
+            });
+        }
+
+        if (request.context && request.context.length > 0) {
+            messages.push({
+                role: 'system',
+                content: `Context:\n${request.context.join('\n')}`
+            });
+        }
+
         messages.push({
-            role: 'system',
-            content: request.systemPrompt
+            role: 'user',
+            content: request.prompt
         });
+
+        return messages;
     }
-
-    if (request.context && request.context.length > 0) {
-        messages.push({
-            role: 'system',
-            content: `Context:\n${request.context.join('\n')}`
-        });
-    }
-
-    messages.push({
-        role: 'user',
-        content: request.prompt
-    });
-
-    return messages;
-}
 }

@@ -8,7 +8,6 @@ import { configManager } from './config/settings';
 import { modelRouter } from './ai/ModelRouter';
 import { PermissionEngine } from './safety/PermissionEngine';
 import { projectBrain } from './brain/ProjectBrain';
-import { agentOrchestrator } from './agents/AgentOrchestrator';
 import { fileOperationManager } from './operations/FileOperationManager';
 import { backupManager } from './operations/BackupManager';
 import { terminalExecutor } from './terminal/TerminalExecutor';
@@ -16,6 +15,7 @@ import { memoryEngine } from './memory/MemoryEngine';
 import { inlineSuggestionProvider } from './suggestions/InlineSuggestionProvider';
 import { imageToCodeAgent } from './agents/ImageToCodeAgent';
 import { commitMessageGenerator } from './features/CommitMessageGenerator';
+import { WebviewProvider } from './ui/WebviewProvider';
 
 let permissionEngine: PermissionEngine;
 
@@ -36,6 +36,15 @@ export async function activate(context: vscode.ExtensionContext) {
             await backupManager.initialize(workspaceRoot);
             await memoryEngine.initialize(workspaceRoot);
         }
+
+        // Register webview provider
+        const webviewProvider = new WebviewProvider(context.extensionUri);
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(
+                WebviewProvider.viewType,
+                webviewProvider
+            )
+        );
 
         // Register inline suggestion provider
         context.subscriptions.push(
@@ -72,7 +81,7 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Main panel command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.openPanel', async () => {
-            vscode.window.showInformationMessage('CodeMind AI Panel - Coming soon!');
+            vscode.commands.executeCommand('codemind.panel.focus');
         })
     );
 
