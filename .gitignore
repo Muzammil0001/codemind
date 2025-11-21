@@ -1,0 +1,33 @@
+node_modules
+out
+dist
+*.vsix
+.vscode-test
+.DS_Store
+*.log
+
+# Build outputs
+webview/dist
+webview/build
+
+# Environment files
+.env
+.env.local
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache
+*.cache
+
+# IDE
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
