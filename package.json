@@ -135,7 +135,6 @@
                         "deepseek-coder",
                         "deepseek-chat",
                         "gemini-pro",
-                        "gemini-pro-vision",
                         "openai-gpt-4o-mini",
                         "claude-haiku",
                         "ollama-local",

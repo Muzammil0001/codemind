@@ -76,17 +76,7 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
         isLocal: false,
         requiresApiKey: true
     },
-    'gemini-pro-vision': {
-        id: 'gemini-pro-vision',
-        provider: 'gemini',
-        name: 'Gemini Pro Vision',
-        contextWindow: 16384,
-        capabilities: ['code-generation', 'explanation', 'image-to-code'],
-        costPerToken: 0,
-        averageLatency: 300,
-        isLocal: false,
-        requiresApiKey: true
-    },
+
 
     // OpenAI Models (Free Tier)
     'openai-gpt-4o-mini': {

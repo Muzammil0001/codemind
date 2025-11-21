@@ -65,8 +65,14 @@ export class GeminiProvider extends BaseProvider {
         const startTime = Date.now();
 
         try {
+            // Handle legacy model name from settings
+            let modelName = request.model || 'gemini-pro';
+            if (modelName === 'gemini-pro-vision') {
+                modelName = 'gemini-pro';
+            }
+
             const model = this.client.getGenerativeModel({
-                model: request.model || 'gemini-pro'
+                model: modelName
             });
 
             const prompt = this.buildPrompt(request);

@@ -29,9 +29,32 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-    // Handle messages from the webview
-    webviewView.webview.onDidReceiveMessage(async (data) => {
-      switch (data.type) {
+    // Set up message listener
+    this._setWebviewMessageListener(webviewView.webview);
+
+    // Send initial data
+    this.sendStatus();
+    this.sendActiveTasks();
+  }
+
+  private _setWebviewMessageListener(webview: vscode.Webview) {
+    webview.onDidReceiveMessage(async (message: any) => {
+      const command = message.type;
+      const text = message.text;
+
+      logger.info(`WebviewProvider: Received message type: ${command}`);
+
+      switch (command) {
+        case 'log':
+          logger.info(`Webview Log: ${text}`);
+          return;
+        case 'error':
+          logger.error(`Webview Error: ${text}`);
+          vscode.window.showErrorMessage(text);
+          return;
+        case 'hello':
+          vscode.window.showInformationMessage(text);
+          return;
         case 'getStatus':
           await this.sendStatus();
           break;
@@ -42,16 +65,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           await this.sendMemoryStats();
           break;
         case 'selectModel':
-          await this.handleModelSelection(data.model);
+          await this.handleModelSelection(message.model);
           break;
         case 'executeQuery':
-          await this.handleQuery(data.query);
+          logger.info('WebviewProvider: Execute query command received');
+          await this.handleQuery(message.query);
           break;
       }
     });
-
-    // Send initial data
-    this.sendStatus();
   }
 
   private async sendStatus() {
@@ -119,19 +140,25 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleQuery(query: string) {
+    logger.info(`WebviewProvider: Handling query: "${query}"`);
+
     if (!this._view) {
+      logger.error('WebviewProvider: View is undefined');
       return;
     }
 
     try {
       // Send loading state
+      logger.info('WebviewProvider: Sending loading state to webview');
       this._view.webview.postMessage({
         type: 'queryResponse',
         data: { loading: true }
       });
 
       // Parse query for @ file references and / commands
+      logger.info('WebviewProvider: Parsing query...');
       const { cleanQuery, files, command } = await this.parseQuery(query);
+      logger.info(`WebviewProvider: Parsed query. Command: ${command}, Files: ${files.length}`);
 
       // Determine agent type based on command
       let agentType: any = 'coder';
@@ -172,26 +199,51 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         createdAt: Date.now()
       };
 
-      // Execute query through agent orchestrator
-      const result = await agentOrchestrator.executeTask(task);
+      // Execute query through agent orchestrator with timeout
+      logger.info(`WebviewProvider: Executing task ${task.id}`);
+
+      const timeoutPromise = new Promise<any>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out after 30 seconds')), 30000);
+      });
+
+      const executionPromise = agentOrchestrator.executeTask(task);
+
+      // Race between execution and timeout
+      const result: any = await Promise.race([executionPromise, timeoutPromise]);
+
+      logger.info(`WebviewProvider: Task ${task.id} completed with success=${result.success}`);
 
       // Send response
-      this._view.webview.postMessage({
-        type: 'queryResponse',
-        data: {
-          loading: false,
-          response: result.output || 'Query completed successfully',
-          success: true,
-          referencedFiles: files
-        }
-      });
+      if (result.success) {
+        this._view.webview.postMessage({
+          type: 'queryResponse',
+          data: {
+            loading: false,
+            response: result.output || 'Query completed successfully',
+            success: true,
+            referencedFiles: files
+          }
+        });
+      } else {
+        // Handle agent failure
+        const errorMessage = result.warnings && result.warnings.length > 0 ? result.warnings[0] : 'Unknown error occurred';
+        this._view.webview.postMessage({
+          type: 'queryResponse',
+          data: {
+            loading: false,
+            response: `Error: ${errorMessage}`,
+            success: false
+          }
+        });
+      }
     } catch (error: any) {
+      logger.error('WebviewProvider: Error handling query', error);
       // Send error
       this._view.webview.postMessage({
         type: 'queryResponse',
         data: {
           loading: false,
-          response: `Error: ${error.message}`,
+          response: `Error: ${error.message || 'An unexpected error occurred'}`,
           success: false
         }
       });
@@ -247,6 +299,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CodeMind AI</title>
   <style>
@@ -458,7 +511,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       <option value="deepseek-coder">DeepSeek Coder (Code Specialist)</option>
       <option value="deepseek-chat">DeepSeek Chat</option>
       <option value="gemini-pro">Gemini Pro (32K context)</option>
-      <option value="gemini-pro-vision">Gemini Pro Vision (Images)</option>
       <option value="openai-gpt-4o-mini">OpenAI GPT-4o Mini</option>
       <option value="claude-haiku">Claude Haiku</option>
       <option value="ollama-local">Ollama (Local)</option>
@@ -469,13 +521,15 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
   <div class="section">
     <h3>Ask AI Agent</h3>
-    <textarea id="queryInput" placeholder="Ask me anything...
+    <textarea id="queryInput" onkeydown="handleQueryKeydown(event)" placeholder="Ask me anything...
 
 Examples:
 • @WebviewProvider.ts explain this file
 • /refactor make this code cleaner
 • @models.ts /review check for issues
-• Create a React component for user login"></textarea>
+• Create a React component for user login
+
+Tip: Press Enter to submit, Ctrl+Enter for new line"></textarea>
     <button onclick="executeQuery()">Ask AI</button>
     <div id="queryResponse" style="display: none;"></div>
   </div>
@@ -504,6 +558,17 @@ Examples:
 
   <script>
     const vscode = acquireVsCodeApi();
+
+    // Global error handler
+    window.onerror = function(message, source, lineno, colno, error) {
+      vscode.postMessage({
+        type: 'error',
+        text: \`Webview Error: \${message} at \${source}:\${lineno}:\${colno}\`
+      });
+    };
+
+    console.log('Webview script loaded');
+    vscode.postMessage({ type: 'log', text: 'Webview script loaded' });
 
     // Request initial data
     vscode.postMessage({ type: 'getStatus' });
@@ -615,6 +680,15 @@ Examples:
 
     function refreshTasks() {
       vscode.postMessage({ type: 'getActiveTasks' });
+    }
+
+    function handleQueryKeydown(event) {
+      // Submit on Enter (without Ctrl/Cmd)
+      if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        executeQuery();
+      }
+      // Allow Ctrl+Enter or Cmd+Enter for new line (default behavior)
     }
 
     function executeQuery() {
