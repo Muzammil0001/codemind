@@ -65,10 +65,10 @@ export class GeminiProvider extends BaseProvider {
         const startTime = Date.now();
 
         try {
-            // Handle legacy model name from settings
-            let modelName = request.model || 'gemini-pro';
-            if (modelName === 'gemini-pro-vision') {
-                modelName = 'gemini-pro';
+            // Use gemini-2.5-flash as default if not specified or if legacy model is requested
+            let modelName = request.model;
+            if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
+                modelName = 'gemini-2.5-flash';
             }
 
             const model = this.client.getGenerativeModel({
@@ -83,16 +83,17 @@ export class GeminiProvider extends BaseProvider {
             const latency = Date.now() - startTime;
             const tokensUsed = this.estimateTokens(content);
 
-            logger.info(`Gemini completion generated in ${latency}ms`);
+            logger.info(`Gemini completion generated in ${latency}ms using ${modelName}`);
 
             return this.createResponse(
                 content,
-                request.model || 'gemini-pro',
+                modelName,
                 tokensUsed,
                 latency
             );
         } catch (error) {
             this.handleError(error, 'completion');
+            throw error;
         }
     }
 
@@ -108,8 +109,14 @@ export class GeminiProvider extends BaseProvider {
         let fullContent = '';
 
         try {
+            // Use gemini-2.5-flash as default if not specified or if legacy model is requested
+            let modelName = request.model;
+            if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
+                modelName = 'gemini-2.5-flash';
+            }
+
             const model = this.client.getGenerativeModel({
-                model: request.model || 'gemini-pro'
+                model: modelName
             });
 
             const prompt = this.buildPrompt(request);
@@ -124,16 +131,17 @@ export class GeminiProvider extends BaseProvider {
             const latency = Date.now() - startTime;
             const tokensUsed = this.estimateTokens(fullContent);
 
-            logger.info(`Gemini streaming completed in ${latency}ms`);
+            logger.info(`Gemini streaming completed in ${latency}ms using ${modelName}`);
 
             return this.createResponse(
                 fullContent,
-                request.model || 'gemini-pro',
+                modelName,
                 tokensUsed,
                 latency
             );
         } catch (error) {
             this.handleError(error, 'streaming');
+            throw error;
         }
     }
 }

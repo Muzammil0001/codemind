@@ -79,14 +79,39 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
 
 
     // OpenAI Models (Free Tier)
-    'openai-gpt-4o-mini': {
-        id: 'openai-gpt-4o-mini',
+    'chatgpt-4o': {
+        id: 'chatgpt-4o',
         provider: 'openai',
-        name: 'GPT-4o Mini',
+        name: 'GPT-4o Free',
         contextWindow: 128000,
-        capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring', 'documentation'],
+        capabilities: [
+            'code-generation',
+            'code-completion',
+            'code-review',
+            'explanation',
+            'refactoring',
+            'documentation'
+        ],
         costPerToken: 0,
         averageLatency: 300,
+        isLocal: false,
+        requiresApiKey: true
+    },
+
+    'chatgpt-3.5': {
+        id: 'chatgpt-3.5',
+        provider: 'openai',
+        name: 'GPT-3.5 Free',
+        contextWindow: 4096,
+        capabilities: [
+            'code-generation',
+            'code-completion',
+            'code-review',
+            'explanation',
+            'refactoring'
+        ],
+        costPerToken: 0,
+        averageLatency: 200,
         isLocal: false,
         requiresApiKey: true
     },

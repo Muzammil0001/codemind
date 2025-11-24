@@ -21,6 +21,6 @@
         ".vscode-test",
         "out",
         "dist",
-        "webview"
+        "src/webview"
     ]
 }

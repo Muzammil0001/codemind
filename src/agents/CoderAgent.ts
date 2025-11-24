@@ -21,7 +21,8 @@ export class CoderAgent extends BaseAgent {
             prompt,
             systemPrompt: 'You are an expert software engineer. Write clean, well-documented, production-ready code.',
             context: context.relevantFiles,
-            maxTokens: 3000
+            maxTokens: 3000,
+            model: task.context.modelId
         }, 'code-generation');
 
         const code = this.extractCode(response.content);

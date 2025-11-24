@@ -78,12 +78,26 @@ export function deactivate() {
 }
 
 function registerCommands(context: vscode.ExtensionContext) {
+    logger.info('Registering commands...');
+
     // Main panel command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('codemind.openPanel', async () => {
-            vscode.commands.executeCommand('codemind.panel.focus');
-        })
-    );
+    try {
+        context.subscriptions.push(
+            vscode.commands.registerCommand('codemind.openPanel', async () => {
+                logger.info('Executing command: codemind.openPanel');
+                try {
+                    await vscode.commands.executeCommand('codemind.panel.focus');
+                } catch (error) {
+                    logger.error('Failed to focus panel', error as Error);
+                    // Fallback: try to show the view container
+                    await vscode.commands.executeCommand('workbench.view.extension.codemind-sidebar');
+                }
+            })
+        );
+        logger.info('Registered command: codemind.openPanel');
+    } catch (error) {
+        logger.error('Failed to register codemind.openPanel', error as Error);
+    }
 
     // Generate code command
     context.subscriptions.push(
@@ -313,7 +327,7 @@ function registerCommands(context: vscode.ExtensionContext) {
             );
         })
     );
-    logger.info('Commands registered');
+    logger.info('All commands registered successfully');
 }
 
 async function initializeAI() {

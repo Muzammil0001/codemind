@@ -60,9 +60,9 @@ export class InlineSuggestionProvider implements vscode.InlineCompletionItemProv
         try {
             const response = await modelRouter.generateCompletion({
                 prompt,
-                systemPrompt: 'You are a code completion assistant. Provide only the completion, no explanations.',
-                maxTokens: 100,
-                temperature: 0.3 // Lower temperature for more deterministic completions
+                systemPrompt: 'You are a highly accurate code completion engine. Your task is to complete the code based on the context provided. Return ONLY the code completion. Do not include markdown formatting, explanations, or the original code.',
+                maxTokens: 50, // Short completion
+                temperature: 0.1 // Very deterministic
             }, 'code-completion');
 
             return this.extractCompletion(response.content, textBeforeCursor);
@@ -73,34 +73,43 @@ export class InlineSuggestionProvider implements vscode.InlineCompletionItemProv
     }
 
     private getContext(document: vscode.TextDocument, position: vscode.Position): string {
-        const startLine = Math.max(0, position.line - 10);
+        const startLine = Math.max(0, position.line - 20); // More context
         const endLine = Math.min(document.lineCount - 1, position.line + 5);
 
         const lines: string[] = [];
         for (let i = startLine; i <= endLine; i++) {
-            lines.push(document.lineAt(i).text);
+            if (i === position.line) {
+                // Mark cursor position
+                const lineText = document.lineAt(i).text;
+                lines.push(lineText.substring(0, position.character) + '<CURSOR>' + lineText.substring(position.character));
+            } else {
+                lines.push(document.lineAt(i).text);
+            }
         }
 
         return lines.join('\n');
     }
 
     private buildPrompt(context: string, textBeforeCursor: string): string {
-        return `Complete the following code:\n\n${context}\n\nComplete this line: ${textBeforeCursor}`;
+        return `Complete the code at <CURSOR>.
+Context:
+${context}
+
+Completion:`;
     }
 
     private extractCompletion(response: string, prefix: string): string {
         // Remove code blocks if present
-        let completion = response.replace(/```[\w]*\n?/g, '').trim();
+        let completion = response.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
 
         // Remove the prefix if AI repeated it
         if (completion.startsWith(prefix)) {
             completion = completion.substring(prefix.length);
         }
 
-        // Only return the first line
-        const firstLine = completion.split('\n')[0];
-
-        return firstLine.trim();
+        // Only return the first line or up to the first closing brace/semicolon if it makes sense
+        const lines = completion.split('\n');
+        return lines[0].trimEnd();
     }
 
     enable(): void {

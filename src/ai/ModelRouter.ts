@@ -7,6 +7,7 @@ import { BaseProvider } from './providers/BaseProvider';
 import { GroqProvider } from './providers/GroqProvider';
 import { DeepSeekProvider } from './providers/DeepSeekProvider';
 import { GeminiProvider } from './providers/GeminiProvider';
+import { OpenAIProvider } from './providers/OpenAIProvider';
 import { OllamaProvider } from './providers/OllamaProvider';
 import { LMStudioProvider } from './providers/LMStudioProvider';
 import { AIRequest, AIResponse, ModelCapability, ModelProvider } from '../types';
@@ -47,6 +48,10 @@ export class ModelRouter {
             this.providers.set('gemini', new GeminiProvider(config.apiKeys.gemini));
         }
 
+        if (config.apiKeys.openai) {
+            this.providers.set('openai', new OpenAIProvider(config.apiKeys.openai));
+        }
+
         // Initialize local providers if enabled
         if (config.enableLocalModels) {
             this.providers.set('ollama', new OllamaProvider(config.ollamaUrl));
@@ -55,6 +60,7 @@ export class ModelRouter {
 
         logger.info(`Initialized ${this.providers.size} AI providers`);
     }
+
 
     async selectModel(
         capability?: ModelCapability,
@@ -180,12 +186,37 @@ export class ModelRouter {
             return JSON.parse(cached);
         }
 
-        // Select appropriate model
-        const selection = await this.selectModel(
-            capability,
-            configManager.isTurboMode(),
-            request.context && request.context.length > 100
-        );
+        let selection: ModelSelection;
+
+        // If specific model requested, validate and use it
+        if (request.model) {
+            const modelConfig = getModelConfig(request.model);
+            if (!modelConfig) {
+                throw new Error(`Invalid model ID: ${request.model}`);
+            }
+
+            const provider = this.providers.get(modelConfig.provider);
+            if (!provider) {
+                throw new Error(`Provider ${modelConfig.provider} not initialized. Please check your API key.`);
+            }
+
+            if (!await this.isProviderAvailable(modelConfig.provider)) {
+                throw new Error(`Model ${request.model} is currently unavailable. Check your connection or API key.`);
+            }
+
+            selection = {
+                provider,
+                modelId: request.model,
+                reason: 'Explicitly requested'
+            };
+        } else {
+            // Select appropriate model automatically
+            selection = await this.selectModel(
+                capability,
+                configManager.isTurboMode(),
+                request.context && request.context.length > 100
+            );
+        }
 
         logger.info(`Selected model: ${selection.modelId} (${selection.reason})`);
 

@@ -2,7 +2,10 @@
  * AST Parser - Parses code using tree-sitter for multi-language support
  */
 
-import Parser from 'tree-sitter';
+// Import types only, not the actual module
+type Parser = any;
+type SyntaxNode = any;
+
 import { FunctionNode, ClassNode, ParameterNode, PropertyNode } from '../types';
 import { logger } from '../utils/logger';
 import * as vscode from 'vscode';
@@ -10,19 +13,30 @@ import * as vscode from 'vscode';
 export class ASTParser {
     private parsers: Map<string, Parser> = new Map();
     private initialized = false;
+    private Parser: any = null;
+    private treeSitterAvailable = false;
 
     constructor() {
-        // Lazy initialization
+        // Try to load tree-sitter dynamically
+        try {
+            this.Parser = require('tree-sitter');
+            this.treeSitterAvailable = true;
+            logger.info('Tree-sitter module loaded successfully');
+        } catch (error) {
+            logger.warn('Tree-sitter not available - AST parsing will be disabled', error as Error);
+        }
     }
 
     private async initializeParsers(): Promise<void> {
-        if (this.initialized) return;
+        if (this.initialized || !this.treeSitterAvailable || !this.Parser) {
+            return;
+        }
 
         try {
             // TypeScript
             try {
                 const TypeScript = require('tree-sitter-typescript');
-                const tsParser = new Parser();
+                const tsParser = new this.Parser();
                 tsParser.setLanguage(TypeScript.typescript);
                 this.parsers.set('typescript', tsParser);
                 this.parsers.set('ts', tsParser);
@@ -32,7 +46,7 @@ export class ASTParser {
             // JavaScript
             try {
                 const JavaScript = require('tree-sitter-javascript');
-                const jsParser = new Parser();
+                const jsParser = new this.Parser();
                 jsParser.setLanguage(JavaScript);
                 this.parsers.set('javascript', jsParser);
                 this.parsers.set('js', jsParser);
@@ -42,7 +56,7 @@ export class ASTParser {
             // Python
             try {
                 const Python = require('tree-sitter-python');
-                const pyParser = new Parser();
+                const pyParser = new this.Parser();
                 pyParser.setLanguage(Python);
                 this.parsers.set('python', pyParser);
                 this.parsers.set('py', pyParser);
@@ -51,7 +65,7 @@ export class ASTParser {
             // Go
             try {
                 const Go = require('tree-sitter-go');
-                const goParser = new Parser();
+                const goParser = new this.Parser();
                 goParser.setLanguage(Go);
                 this.parsers.set('go', goParser);
             } catch (e) { logger.warn('Failed to load Go parser', e as Error); }
@@ -59,7 +73,7 @@ export class ASTParser {
             // Rust
             try {
                 const Rust = require('tree-sitter-rust');
-                const rustParser = new Parser();
+                const rustParser = new this.Parser();
                 rustParser.setLanguage(Rust);
                 this.parsers.set('rust', rustParser);
                 this.parsers.set('rs', rustParser);
@@ -68,7 +82,7 @@ export class ASTParser {
             // Java
             try {
                 const Java = require('tree-sitter-java');
-                const javaParser = new Parser();
+                const javaParser = new this.Parser();
                 javaParser.setLanguage(Java);
                 this.parsers.set('java', javaParser);
             } catch (e) { logger.warn('Failed to load Java parser', e as Error); }
@@ -129,7 +143,7 @@ export class ASTParser {
         }
     }
 
-    private extractFunctions(node: Parser.SyntaxNode, content: string): FunctionNode[] {
+    private extractFunctions(node: SyntaxNode, content: string): FunctionNode[] {
         const functions: FunctionNode[] = [];
 
         const functionTypes = [
@@ -152,7 +166,7 @@ export class ASTParser {
         return functions;
     }
 
-    private parseFunctionNode(node: Parser.SyntaxNode, content: string): FunctionNode | null {
+    private parseFunctionNode(node: SyntaxNode, content: string): FunctionNode | null {
         try {
             const nameNode = node.childForFieldName('name');
             const name = nameNode ? content.slice(nameNode.startIndex, nameNode.endIndex) : 'anonymous';
@@ -177,7 +191,7 @@ export class ASTParser {
         }
     }
 
-    private extractClasses(node: Parser.SyntaxNode, content: string): ClassNode[] {
+    private extractClasses(node: SyntaxNode, content: string): ClassNode[] {
         const classes: ClassNode[] = [];
 
         const classTypes = ['class_declaration', 'class_definition'];
@@ -194,7 +208,7 @@ export class ASTParser {
         return classes;
     }
 
-    private parseClassNode(node: Parser.SyntaxNode, content: string): ClassNode | null {
+    private parseClassNode(node: SyntaxNode, content: string): ClassNode | null {
         try {
             const nameNode = node.childForFieldName('name');
             const name = nameNode ? content.slice(nameNode.startIndex, nameNode.endIndex) : 'Anonymous';
@@ -231,7 +245,7 @@ export class ASTParser {
         }
     }
 
-    private parsePropertyNode(node: Parser.SyntaxNode, content: string): PropertyNode | null {
+    private parsePropertyNode(node: SyntaxNode, content: string): PropertyNode | null {
         try {
             const nameNode = node.childForFieldName('name');
             const name = nameNode ? content.slice(nameNode.startIndex, nameNode.endIndex) : 'unknown';
@@ -247,7 +261,7 @@ export class ASTParser {
         }
     }
 
-    private extractParameters(node: Parser.SyntaxNode, content: string): ParameterNode[] {
+    private extractParameters(node: SyntaxNode, content: string): ParameterNode[] {
         const parameters: ParameterNode[] = [];
         const paramsNode = node.childForFieldName('parameters');
 
@@ -272,7 +286,7 @@ export class ASTParser {
         return parameters;
     }
 
-    private extractImports(node: Parser.SyntaxNode, content: string): string[] {
+    private extractImports(node: SyntaxNode, content: string): string[] {
         const imports: string[] = [];
 
         this.traverseNode(node, (n) => {
@@ -285,7 +299,7 @@ export class ASTParser {
         return imports;
     }
 
-    private extractExports(node: Parser.SyntaxNode, content: string): string[] {
+    private extractExports(node: SyntaxNode, content: string): string[] {
         const exports: string[] = [];
 
         this.traverseNode(node, (n) => {
@@ -298,7 +312,7 @@ export class ASTParser {
         return exports;
     }
 
-    private isExported(node: Parser.SyntaxNode): boolean {
+    private isExported(node: SyntaxNode): boolean {
         let current = node.parent;
         while (current) {
             if (current.type === 'export_statement') {
@@ -309,7 +323,7 @@ export class ASTParser {
         return false;
     }
 
-    private calculateComplexity(node: Parser.SyntaxNode): number {
+    private calculateComplexity(node: SyntaxNode): number {
         let complexity = 1; // Base complexity
 
         this.traverseNode(node, (n) => {
@@ -326,7 +340,7 @@ export class ASTParser {
         return complexity;
     }
 
-    private traverseNode(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
+    private traverseNode(node: SyntaxNode, callback: (node: SyntaxNode) => void): void {
         callback(node);
 
         for (let i = 0; i < node.childCount; i++) {

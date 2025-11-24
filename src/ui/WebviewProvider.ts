@@ -3,11 +3,14 @@
  */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { agentOrchestrator } from '../agents/AgentOrchestrator';
 import { modelRouter } from '../ai/ModelRouter';
 import { projectBrain } from '../brain/ProjectBrain';
 import { memoryEngine } from '../memory/MemoryEngine';
 import { logger } from '../utils/logger';
+import { SYSTEM_INSTRUCTION } from '../webview/src/constants/query-default-instructions';
 
 export class WebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'codemind.panel';
@@ -20,21 +23,29 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
+    logger.info('WebviewProvider: resolveWebviewView called');
     this._view = webviewView;
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionUri]
+      localResourceRoots: [
+        this._extensionUri,
+        vscode.Uri.joinPath(this._extensionUri, 'out', 'webview')
+      ]
     };
+    logger.info('WebviewProvider: Webview options set');
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    logger.info('WebviewProvider: HTML content set');
 
     // Set up message listener
     this._setWebviewMessageListener(webviewView.webview);
+    logger.info('WebviewProvider: Message listener set up');
 
     // Send initial data
     this.sendStatus();
     this.sendActiveTasks();
+    logger.info('WebviewProvider: Initial data sent');
   }
 
   private _setWebviewMessageListener(webview: vscode.Webview) {
@@ -69,7 +80,19 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           break;
         case 'executeQuery':
           logger.info('WebviewProvider: Execute query command received');
-          await this.handleQuery(message.query);
+          await this.handleQuery(message.query, message.model);
+          break;
+        case 'saveChat':
+          await this.handleSaveChat(message.session);
+          break;
+        case 'getHistory':
+          await this.handleGetHistory();
+          break;
+        case 'loadChat':
+          await this.handleLoadChat(message.id);
+          break;
+        case 'deleteChat':
+          await this.handleDeleteChat(message.id);
           break;
       }
     });
@@ -84,6 +107,15 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const brainState = projectBrain.getState();
     const memoryStats = memoryEngine.getStatistics();
 
+    // Get file list for @ mentions
+    let files: string[] = [];
+    if (brainState && brainState.dependencyGraph) {
+      files = Array.from(brainState.dependencyGraph.nodes.keys());
+    }
+
+    const config = vscode.workspace.getConfiguration('codemind');
+    const activeModel = config.get<string>('primaryModel') || 'gemini-1.5-flash';
+
     this._view.webview.postMessage({
       type: 'status',
       data: {
@@ -93,7 +125,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           frameworks: brainState.frameworks.map(f => f.name),
           lastAnalyzed: brainState.lastAnalyzed
         } : null,
-        memory: memoryStats
+        memory: memoryStats,
+        files: files, // Send files for autocomplete
+        activeModel: activeModel
       }
     });
   }
@@ -128,6 +162,118 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  private getHistoryFilePath(): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return null;
+    }
+    const codemindDir = path.join(workspaceFolders[0].uri.fsPath, '.codemind');
+    if (!fs.existsSync(codemindDir)) {
+      fs.mkdirSync(codemindDir, { recursive: true });
+    }
+    return path.join(codemindDir, 'history.json');
+  }
+
+  private async handleSaveChat(session: any) {
+    const filePath = this.getHistoryFilePath();
+    if (!filePath) return;
+
+    try {
+      let history: any = { sessions: [] };
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        history = JSON.parse(content);
+      }
+
+      const existingIndex = history.sessions.findIndex((s: any) => s.id === session.id);
+      if (existingIndex >= 0) {
+        history.sessions[existingIndex] = session;
+      } else {
+        history.sessions.unshift(session);
+      }
+
+      // Limit history to 50 sessions
+      if (history.sessions.length > 50) {
+        history.sessions = history.sessions.slice(0, 50);
+      }
+
+      fs.writeFileSync(filePath, JSON.stringify(history, null, 2));
+
+      // Refresh history list for frontend
+      await this.handleGetHistory();
+    } catch (error) {
+      logger.error('Failed to save chat history', error as Error);
+    }
+  }
+
+  private async handleGetHistory() {
+    if (!this._view) return;
+
+    const filePath = this.getHistoryFilePath();
+    let sessions: any[] = [];
+
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const history = JSON.parse(content);
+        // Return only metadata (preview) to save bandwidth
+        sessions = history.sessions.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          timestamp: s.timestamp,
+          preview: s.preview || (s.messages[0]?.content || '').slice(0, 100)
+        }));
+      } catch (error) {
+        logger.error('Failed to read chat history', error as Error);
+      }
+    }
+
+    this._view.webview.postMessage({
+      type: 'historyList',
+      data: sessions
+    });
+  }
+
+  private async handleLoadChat(id: string) {
+    if (!this._view) return;
+
+    const filePath = this.getHistoryFilePath();
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const history = JSON.parse(content);
+        const session = history.sessions.find((s: any) => s.id === id);
+
+        if (session) {
+          this._view.webview.postMessage({
+            type: 'loadChat',
+            data: session
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to load chat session', error as Error);
+      }
+    }
+  }
+
+  private async handleDeleteChat(id: string) {
+    const filePath = this.getHistoryFilePath();
+    if (!filePath) return;
+
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        let history = JSON.parse(content);
+        history.sessions = history.sessions.filter((s: any) => s.id !== id);
+        fs.writeFileSync(filePath, JSON.stringify(history, null, 2));
+
+        await this.handleGetHistory();
+      }
+    } catch (error) {
+      logger.error('Failed to delete chat session', error as Error);
+    }
+  }
+
   private async handleModelSelection(model: string) {
     // Update configuration
     await vscode.workspace.getConfiguration('codemind').update(
@@ -139,8 +285,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     vscode.window.showInformationMessage(`Primary model set to: ${model}`);
   }
 
-  private async handleQuery(query: string) {
-    logger.info(`WebviewProvider: Handling query: "${query}"`);
+  private async handleQuery(query: string, modelId?: string) {
+    logger.info(`WebviewProvider: Handling query: "${query}" with model: ${modelId}`);
 
     if (!this._view) {
       logger.error('WebviewProvider: View is undefined');
@@ -192,7 +338,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         description: cleanQuery,
         context: {
           files: files,
-          userPrompt: cleanQuery
+          userPrompt: `${cleanQuery}\n\n${SYSTEM_INSTRUCTION}`,
+          modelId: modelId // Pass selected model ID
         },
         priority: 1,
         status: 'pending',
@@ -210,7 +357,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       // Race between execution and timeout
       const result: any = await Promise.race([executionPromise, timeoutPromise]);
-
+      logger.info(`WebProvider query reponse=${result}`);
       logger.info(`WebviewProvider: Task ${task.id} completed with success=${result.success}`);
 
       // Send response
@@ -294,459 +441,60 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     return { cleanQuery, files, command };
   }
 
-  private _getHtmlForWebview(_webview: vscode.Webview) {
+  private _getHtmlForWebview(webview: vscode.Webview) {
+    logger.info('WebviewProvider: Generating HTML for webview');
+    // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
+    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.js'));
+    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.css'));
+
+    logger.info(`WebviewProvider: Script URI: ${scriptUri.toString()}`);
+    logger.info(`WebviewProvider: Style URI: ${styleUri.toString()}`);
+
+    // Use a nonce to only allow specific scripts to be run
+    const nonce = getNonce();
+    logger.info(`WebviewProvider: Generated nonce for CSP`);
+
     return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CodeMind AI</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
-      padding: 16px;
-    }
-
-    .section {
-      margin-bottom: 24px;
-      padding: 16px;
-      background-color: var(--vscode-editor-inactiveSelectionBackground);
-      border-radius: 4px;
-    }
-
-    h2 {
-      font-size: 18px;
-      margin-bottom: 12px;
-      color: var(--vscode-textLink-foreground);
-    }
-
-    h3 {
-      font-size: 14px;
-      margin-bottom: 8px;
-      color: var(--vscode-textPreformat-foreground);
-    }
-
-    .status-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--vscode-panel-border);
-    }
-
-    .status-item:last-child {
-      border-bottom: none;
-    }
-
-    .status-label {
-      font-weight: 500;
-    }
-
-    .status-value {
-      color: var(--vscode-descriptionForeground);
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .badge-success {
-      background-color: var(--vscode-testing-iconPassed);
-      color: white;
-    }
-
-    .badge-error {
-      background-color: var(--vscode-testing-iconFailed);
-      color: white;
-    }
-
-    .badge-warning {
-      background-color: var(--vscode-testing-iconQueued);
-      color: white;
-    }
-
-    button {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      margin-right: 8px;
-      margin-top: 8px;
-    }
-
-    button:hover {
-      background-color: var(--vscode-button-hoverBackground);
-    }
-
-    select {
-      background-color: var(--vscode-dropdown-background);
-      color: var(--vscode-dropdown-foreground);
-      border: 1px solid var(--vscode-dropdown-border);
-      padding: 6px 12px;
-      border-radius: 4px;
-      width: 100%;
-      margin-top: 8px;
-    }
-
-    textarea, input[type="text"] {
-      background-color: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      border: 1px solid var(--vscode-input-border);
-      padding: 8px 12px;
-      border-radius: 4px;
-      width: 100%;
-      margin-top: 8px;
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      resize: vertical;
-    }
-
-    textarea {
-      min-height: 80px;
-    }
-
-    .query-response {
-      margin-top: 12px;
-      padding: 12px;
-      background-color: var(--vscode-editor-background);
-      border-radius: 4px;
-      border-left: 3px solid var(--vscode-textLink-foreground);
-      white-space: pre-wrap;
-      font-family: var(--vscode-editor-font-family);
-      font-size: 13px;
-    }
-
-    .query-response.error {
-      border-left-color: var(--vscode-testing-iconFailed);
-      color: var(--vscode-errorForeground);
-    }
-
-    .loading {
-      opacity: 0.6;
-      font-style: italic;
-    }
-
-    .file-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .file-chip {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 8px;
-      background-color: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
-      border-radius: 12px;
-      font-size: 11px;
-      font-family: var(--vscode-editor-font-family);
-    }
-
-    .task-item {
-      padding: 12px;
-      margin-bottom: 8px;
-      background-color: var(--vscode-editor-background);
-      border-left: 3px solid var(--vscode-textLink-foreground);
-      border-radius: 4px;
-    }
-
-    .task-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-
-    .task-description {
-      font-size: 12px;
-      color: var(--vscode-descriptionForeground);
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 24px;
-      color: var(--vscode-descriptionForeground);
-    }
-  </style>
-</head>
-<body>
-  <div class="section">
-    <h2>🤖 CodeMind AI Dashboard</h2>
-    <div class="status-item">
-      <span class="status-label">Status</span>
-      <span class="status-value"><span class="badge badge-success">Active</span></span>
-    </div>
-  </div>
-
-  <div class="section">
-    <h3>AI Providers</h3>
-    <div id="providers">
-      <div class="empty-state">Loading...</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h3>Model Selection</h3>
-    <select id="modelSelect">
-      <option value="groq-llama-3.1-70b">Groq LLaMA 3.1 70B (Fast)</option>
-      <option value="groq-mixtral-8x7b">Groq Mixtral 8x7B</option>
-      <option value="groq-llama-3.1-8b">Groq LLaMA 3.1 8B (Fastest)</option>
-      <option value="deepseek-coder">DeepSeek Coder (Code Specialist)</option>
-      <option value="deepseek-chat">DeepSeek Chat</option>
-      <option value="gemini-pro">Gemini Pro (32K context)</option>
-      <option value="openai-gpt-4o-mini">OpenAI GPT-4o Mini</option>
-      <option value="claude-haiku">Claude Haiku</option>
-      <option value="ollama-local">Ollama (Local)</option>
-      <option value="lmstudio-local">LM Studio (Local)</option>
-    </select>
-    <button onclick="selectModel()">Set Primary Model</button>
-  </div>
-
-  <div class="section">
-    <h3>Ask AI Agent</h3>
-    <textarea id="queryInput" onkeydown="handleQueryKeydown(event)" placeholder="Ask me anything...
-
-Examples:
-• @WebviewProvider.ts explain this file
-• /refactor make this code cleaner
-• @models.ts /review check for issues
-• Create a React component for user login
-
-Tip: Press Enter to submit, Ctrl+Enter for new line"></textarea>
-    <button onclick="executeQuery()">Ask AI</button>
-    <div id="queryResponse" style="display: none;"></div>
-  </div>
-
-  <div class="section">
-    <h3>Project Intelligence</h3>
-    <div id="brainState">
-      <div class="empty-state">No project analyzed yet</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h3>Active Tasks</h3>
-    <div id="activeTasks">
-      <div class="empty-state">No active tasks</div>
-    </div>
-    <button onclick="refreshTasks()">Refresh</button>
-  </div>
-
-  <div class="section">
-    <h3>Memory</h3>
-    <div id="memoryStats">
-      <div class="empty-state">Loading...</div>
-    </div>
-  </div>
-
-  <script>
-    const vscode = acquireVsCodeApi();
-
-    // Global error handler
-    window.onerror = function(message, source, lineno, colno, error) {
-      vscode.postMessage({
-        type: 'error',
-        text: \`Webview Error: \${message} at \${source}:\${lineno}:\${colno}\`
-      });
-    };
-
-    console.log('Webview script loaded');
-    vscode.postMessage({ type: 'log', text: 'Webview script loaded' });
-
-    // Request initial data
-    vscode.postMessage({ type: 'getStatus' });
-    vscode.postMessage({ type: 'getActiveTasks' });
-    vscode.postMessage({ type: 'getMemoryStats' });
-
-    // Handle messages from extension
-    window.addEventListener('message', event => {
-      const message = event.data;
-      
-      switch (message.type) {
-        case 'status':
-          updateStatus(message.data);
-          break;
-        case 'activeTasks':
-          updateActiveTasks(message.data);
-          break;
-        case 'memoryStats':
-          updateMemoryStats(message.data);
-          break;
-        case 'queryResponse':
-          updateQueryResponse(message.data);
-          break;
-      }
-    });
-
-    function updateStatus(data) {
-      // Update providers
-      const providersDiv = document.getElementById('providers');
-      if (data.providers && data.providers.length > 0) {
-        providersDiv.innerHTML = data.providers.map(([name, available]) => \`
-          <div class="status-item">
-            <span class="status-label">\${name}</span>
-            <span class="status-value">
-              <span class="badge \${available ? 'badge-success' : 'badge-error'}">
-                \${available ? 'Available' : 'Unavailable'}
-              </span>
-            </span>
-          </div>
-        \`).join('');
-      }
-
-      // Update brain state
-      const brainDiv = document.getElementById('brainState');
-      if (data.brainState) {
-        brainDiv.innerHTML = \`
-          <div class="status-item">
-            <span class="status-label">Files Analyzed</span>
-            <span class="status-value">\${data.brainState.fileCount}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Frameworks</span>
-            <span class="status-value">\${data.brainState.frameworks.join(', ') || 'None'}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Last Analyzed</span>
-            <span class="status-value">\${new Date(data.brainState.lastAnalyzed).toLocaleString()}</span>
-          </div>
-        \`;
-      }
-    }
-
-    function updateActiveTasks(tasks) {
-      const tasksDiv = document.getElementById('activeTasks');
-      
-      if (tasks && tasks.length > 0) {
-        tasksDiv.innerHTML = tasks.map(task => \`
-          <div class="task-item">
-            <div class="task-header">
-              <strong>\${task.type}</strong>
-              <span class="badge badge-warning">\${task.status}</span>
-            </div>
-            <div class="task-description">\${task.description}</div>
-          </div>
-        \`).join('');
-      } else {
-        tasksDiv.innerHTML = '<div class="empty-state">No active tasks</div>';
-      }
-    }
-
-    function updateMemoryStats(data) {
-      const memoryDiv = document.getElementById('memoryStats');
-      
-      if (data && data.stats) {
-        const types = Object.entries(data.stats.byType).map(([type, count]) => 
-          \`\${type}: \${count}\`
-        ).join(', ');
-
-        memoryDiv.innerHTML = \`
-          <div class="status-item">
-            <span class="status-label">Total Memories</span>
-            <span class="status-value">\${data.stats.total}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">By Type</span>
-            <span class="status-value">\${types || 'None'}</span>
-          </div>
-        \`;
-      }
-    }
-
-    function selectModel() {
-      const select = document.getElementById('modelSelect');
-      vscode.postMessage({
-        type: 'selectModel',
-        model: select.value
-      });
-    }
-
-    function refreshTasks() {
-      vscode.postMessage({ type: 'getActiveTasks' });
-    }
-
-    function handleQueryKeydown(event) {
-      // Submit on Enter (without Ctrl/Cmd)
-      if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        executeQuery();
-      }
-      // Allow Ctrl+Enter or Cmd+Enter for new line (default behavior)
-    }
-
-    function executeQuery() {
-      const input = document.getElementById('queryInput');
-      const responseDiv = document.getElementById('queryResponse');
-      const query = input.value.trim();
-
-      if (!query) {
-        return;
-      }
-
-      // Show loading state
-      responseDiv.style.display = 'block';
-      responseDiv.className = 'query-response loading';
-      responseDiv.textContent = 'Processing your query...';
-
-      // Send query to extension
-      vscode.postMessage({
-        type: 'executeQuery',
-        query: query
-      });
-    }
-
-    function updateQueryResponse(data) {
-      const responseDiv = document.getElementById('queryResponse');
-      
-      if (data.loading) {
-        responseDiv.style.display = 'block';
-        responseDiv.className = 'query-response loading';
-        responseDiv.textContent = 'Processing your query...';
-      } else {
-        responseDiv.style.display = 'block';
-        responseDiv.className = data.success ? 'query-response' : 'query-response error';
-        
-        // Build response HTML
-        let html = '<div>' + data.response + '</div>';
-        
-        // Add referenced files if any
-        if (data.referencedFiles && data.referencedFiles.length > 0) {
-          html += '<div class="file-chips">';
-          data.referencedFiles.forEach(file => {
-            const fileName = file.split('/').pop();
-            html += '<span class="file-chip">📄 ' + fileName + '</span>';
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; script-src-elem 'nonce-${nonce}'; connect-src ${webview.cspSource};">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="${styleUri}" rel="stylesheet">
+        <title>CodeMind AI</title>
+      </head>
+      <body>
+        <div id="root"></div>
+        <script nonce="${nonce}">
+          const vscode = acquireVsCodeApi();
+          window.vscode = vscode;
+          window.onerror = function(message, source, lineno, colno, error) {
+            vscode.postMessage({
+              type: 'error',
+              text: 'ERROR: ' + message + ' at ' + source + ':' + lineno + ':' + colno
+            });
+            return true;
+          };
+          window.addEventListener('unhandledrejection', function(event) {
+            vscode.postMessage({
+              type: 'error',
+              text: 'Unhandled Promise Rejection: ' + event.reason
+            });
           });
-          html += '</div>';
-        }
-        
-        responseDiv.innerHTML = html;
-      }
-    }
-
-// Auto-refresh every 5 seconds
-setInterval(() => {
-  vscode.postMessage({ type: 'getStatus' });
-  vscode.postMessage({ type: 'getActiveTasks' });
-}, 5000);
-</script>
-  </body>
-  </html>`;
+          console.log('Webview initializing...');
+          vscode.postMessage({ type: 'log', text: 'Webview script loaded' });
+        </script>
+        <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
+      </body>
+      </html>`;
   }
+}
+
+function getNonce() {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }

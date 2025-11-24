@@ -1,7 +1,7 @@
 {
     "name": "codemind-ai",
     "displayName": "CodeMind AI - Next-Gen Coding Agent",
-    "description": "🤖 AI coding agent with 6 specialized agents, 10+ models (Groq, DeepSeek, Gemini), deep codebase intelligence, and complete safety system. Free tier focused!",
+    "description": "🤖 AI coding agent with multiple AI models (GPT-4o, Gemini 2.5 Flash, Claude 3.5, DeepSeek V3, Groq), deep codebase intelligence, and complete safety system.",
     "version": "1.0.0",
     "publisher": "codemind",
     "author": {
@@ -41,14 +41,7 @@
         "free-ai"
     ],
     "activationEvents": [
-        "onStartupFinished",
-        "onCommand:codemind.openPanel",
-        "onCommand:codemind.generateCode",
-        "onCommand:codemind.refactorCode",
-        "onCommand:codemind.explainCode",
-        "onCommand:codemind.generateTests",
-        "onCommand:codemind.generateDocs",
-        "onCommand:codemind.imageToCode"
+        "onStartupFinished"
     ],
     "main": "./dist/extension.js",
     "contributes": {
@@ -127,18 +120,24 @@
             "properties": {
                 "codemind.primaryModel": {
                     "type": "string",
-                    "default": "groq-llama-3.1-70b",
+                    "default": "chatgpt-4",
                     "enum": [
-                        "groq-llama-3.1-70b",
-                        "groq-mixtral-8x7b",
-                        "groq-llama-3.1-8b",
-                        "deepseek-coder",
-                        "deepseek-chat",
+                        "chatgpt-4",
+                        "chatgpt-3.5",
+                        "gemini-flash",
                         "gemini-pro",
-                        "openai-gpt-4o-mini",
-                        "claude-haiku",
-                        "ollama-local",
-                        "lmstudio-local"
+                        "claude-sonnet",
+                        "deepseek-coder",
+                        "groq-llama-3.1-70b"
+                    ],
+                    "enumDescriptions": [
+                        "GPT-4o - Most capable (Recommended)",
+                        "GPT-3.5 Turbo - Fast and efficient",
+                        "Gemini 2.5 Flash - Lightning fast",
+                        "Gemini 2.0 Pro - Google's advanced model",
+                        "Claude 3.5 Sonnet - Excellent reasoning",
+                        "DeepSeek V3 - Specialized for coding",
+                        "Groq Llama 3.1 70B - Large open model"
                     ],
                     "description": "Primary AI model to use for code generation"
                 },
@@ -304,7 +303,7 @@
         "better-sqlite3": "^9.2.2",
         "openai": "^4.24.1",
         "@anthropic-ai/sdk": "^0.10.2",
-        "@google/generative-ai": "^0.1.3",
+        "@google/generative-ai": "^0.21.0",
         "groq-sdk": "^0.3.0",
         "diff": "^5.1.0",
         "fast-glob": "^3.3.2",

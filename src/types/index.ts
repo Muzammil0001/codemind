@@ -228,6 +228,7 @@ export interface TaskContext {
     userPrompt: string;
     projectBrain?: ProjectBrainState;
     relatedTasks?: string[];
+    modelId?: string;
 }
 
 export interface AgentResult {
