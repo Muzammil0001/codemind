@@ -1,11 +1,8 @@
-/**
- * Detects the likely programming language from a code snippet.
- * Uses broad heuristics for common languages and defaults to plaintext.
- */
+// Detect the programming language of a code snippet
 export function detectLanguage(snippet: string): string {
     const trimmed = snippet.trim();
 
-    // If snippet contains obvious JSON
+    // Check if JSON
     if (/^\{[\s\S]*\}$/.test(trimmed) || /^\[[\s\S]*\]$/.test(trimmed)) {
         try {
             JSON.parse(trimmed);
@@ -13,7 +10,6 @@ export function detectLanguage(snippet: string): string {
         } catch { }
     }
 
-    // Heuristic detection: keywords for common languages
     const patterns: { [lang: string]: RegExp } = {
         typescript: /\b(interface|type|enum|namespace|as\s+\w+|:\s*\w+(\[\])?)\b/,
         javascript: /\b(const|let|var|function|=>|async|await|import|export|require)\b/,
@@ -37,67 +33,29 @@ export function detectLanguage(snippet: string): string {
     return 'plaintext';
 }
 
-/**
- * Determines if a text block looks like code.
- */
-function isLikelyCode(text: string): boolean {
-    const trimmed = text.trim();
-    if (trimmed.length < 5) return false;
+// Unwrap only the outermost code fence
+export function unwrapOuterCodeFence(text: string): string {
+    if (!text || typeof text !== 'string') return '';
 
-    // Any line ending with semicolon, braces, or typical code symbols
-    return /[{};=<>]/.test(trimmed) || /function|class|def|import|export|return/.test(trimmed);
+    const trimmed = text.trim();
+    const match = trimmed.match(/^```[\w-]*\n([\s\S]*?)\n```$/);
+    if (match && match[1] !== undefined) {
+        return match[1];
+    }
+
+    return text;
 }
 
-/**
- * Remove common AI boilerplate from the text.
- */
-// function removeBoilerplate(text: string): string {
-//     const patterns = [
-//         /^(Here's|Here is|Below is|Here are)\s+(the|a|an|some)?\s*(code|solution|implementation|example|function|script|snippet)[:\s]*/im,
-//         /^As an AI(,|\s).*/im,
-//         /^Sure[,!]\s+(here('s| is)|I can|let me).*/im,
-//         /^(Certainly|Absolutely|Of course)[,!]\s*.*/im,
-//         /^Let me (help|show|provide|create|write).*/im,
-//         /^I('ll| will) (help|show|provide|create|write).*/im,
-//         /^Explanation:\s*/im,
-//         /^Output:\s*/im,
-//         /^Result:\s*/im,
-//     ];
-//     let cleaned = text;
-//     for (const pattern of patterns) cleaned = cleaned.replace(pattern, '');
-//     return cleaned.trim();
-// }
-
-/**
- * Formats raw LLM output into markdown with code fences.
- */
 export function formatLLMMessage(text: string): string {
     if (!text || typeof text !== 'string') return '';
 
-    // Fix unbalanced fences
+    text = unwrapOuterCodeFence(text);
+
     const fenceMatches = text.match(/```/g);
     if (fenceMatches && fenceMatches.length % 2 === 1) {
         text += '\n```';
     }
 
-    // Split text by existing code fences
-    const parts = text.split(/(```[\s\S]*?```)/g);
-
-    for (let i = 0; i < parts.length; i++) {
-        if (i % 2 === 1) continue; // already fenced
-        const part = parts[i];
-        if (isLikelyCode(part)) {
-            const lang = detectLanguage(part);
-            parts[i] = `\`\`\`${lang}\n${part.trim()}\n\`\`\``;
-        }
-    }
-
-    text = parts.join('');
-
-    // Remove accidental bullet prefixes in code blocks
-    text = text.replace(/```(\w+)?\n([-•*]\s+)/g, '```$1\n');
-
-    // Limit consecutive newlines
     text = text.replace(/\n{3,}/g, '\n\n');
 
     return text.trim();
