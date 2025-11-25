@@ -17,7 +17,7 @@ export interface AttachedItem {
 interface InputAreaProps {
     onSend: (text: string, files: AttachedItem[]) => void;
     onStop: () => void;
-    availableFiles: string[];
+    availableFiles: Array<{ path: string; type: 'file' | 'directory' }>;
     onModelSelect: (model: string) => void;
     isLoading?: boolean;
     editingMessage?: string;
@@ -35,7 +35,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
 }) => {
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<AttachedItem[]>([]);
-    const [suggestions, setSuggestions] = useState<Array<{ text: string; type: 'file' | 'command' }>>([]);
+    const [suggestions, setSuggestions] = useState<Array<{ text: string; type: 'file' | 'directory' | 'command' }>>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
@@ -58,14 +58,25 @@ export const InputArea: React.FC<InputAreaProps> = ({
         const cursorPosition = value.length;
         const textBeforeCursor = value.substring(0, cursorPosition);
 
-        // File suggestions (@)
+        // File/Directory suggestions (@)
         const atMatch = textBeforeCursor.match(/@([\w\-\.\/]*)$/);
         if (atMatch) {
             const query = atMatch[1].toLowerCase();
+
+            // Enhanced matching: support both fuzzy and path-based matching
             const matches = availableFiles
-                .filter((f) => f.toLowerCase().includes(query))
-                .slice(0, 8)
-                .map((f) => ({ text: f, type: 'file' as const }));
+                .filter((item) => {
+                    const itemPath = item.path.toLowerCase();
+                    const fileName = item.path.split('/').pop()?.toLowerCase() || '';
+
+                    // Match if query is in path or filename
+                    return itemPath.includes(query) || fileName.includes(query);
+                })
+                .slice(0, 10)
+                .map((item) => ({
+                    text: item.path,
+                    type: item.type === 'directory' ? 'directory' as const : 'file' as const
+                }));
 
             if (matches.length > 0) {
                 setSuggestions(matches);
@@ -120,12 +131,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
     };
 
     // Select a suggestion
-    const selectSuggestion = (suggestion: { text: string; type: 'file' | 'command' }) => {
+    const selectSuggestion = (suggestion: { text: string; type: 'file' | 'directory' | 'command' }) => {
         let newText = input;
 
-        if (suggestion.type === 'file') {
+        if (suggestion.type === 'file' || suggestion.type === 'directory') {
             newText = input.replace(/@([\w\-\.\/]*)$/, '@' + suggestion.text + ' ');
-            if (!attachedFiles.find(f => f.name === suggestion.text)) {
+            // Only add files to attachedFiles, not directories
+            if (suggestion.type === 'file' && !attachedFiles.find(f => f.name === suggestion.text)) {
                 setAttachedFiles(prev => [...prev, {
                     id: Date.now().toString() + Math.random(),
                     name: suggestion.text,

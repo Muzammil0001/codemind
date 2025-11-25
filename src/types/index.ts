@@ -244,6 +244,7 @@ export interface AgentResult {
         tokensUsed: number;
         latency: number;
         linesChanged: number;
+        operationsExecuted?: number;
     };
 }
 

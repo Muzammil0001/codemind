@@ -21,7 +21,8 @@ export abstract class BaseProvider {
 
     abstract streamCompletion(
         request: AIRequest,
-        onChunk: (chunk: string) => void
+        onChunk: (chunk: string) => void,
+        signal?: AbortSignal
     ): Promise<AIResponse>;
 
     protected createResponse(

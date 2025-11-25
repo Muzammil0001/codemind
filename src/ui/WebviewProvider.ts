@@ -15,6 +15,7 @@ import { SYSTEM_INSTRUCTION } from '../webview/src/constants/query-default-instr
 export class WebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'codemind.panel';
   private _view?: vscode.WebviewView;
+  private _activeQueryController?: AbortController;
 
   constructor(private readonly _extensionUri: vscode.Uri) { }
 
@@ -94,6 +95,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         case 'deleteChat':
           await this.handleDeleteChat(message.id);
           break;
+        case 'stopQuery':
+          await this.handleStopQuery();
+          break;
       }
     });
   }
@@ -107,11 +111,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const brainState = projectBrain.getState();
     const memoryStats = memoryEngine.getStatistics();
 
-    // Get file list for @ mentions
-    let files: string[] = [];
-    if (brainState && brainState.dependencyGraph) {
-      files = Array.from(brainState.dependencyGraph.nodes.keys());
-    }
+    const workspaceFiles = await this.getWorkspaceFilesAndDirectories();
 
     const config = vscode.workspace.getConfiguration('codemind');
     const activeModel = config.get<string>('primaryModel') || 'gemini-1.5-flash';
@@ -126,10 +126,59 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           lastAnalyzed: brainState.lastAnalyzed
         } : null,
         memory: memoryStats,
-        files: files, // Send files for autocomplete
+        files: workspaceFiles,
         activeModel: activeModel
       }
     });
+  }
+
+  private async getWorkspaceFilesAndDirectories(): Promise<Array<{ path: string; type: 'file' | 'directory' }>> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return [];
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const items: Array<{ path: string; type: 'file' | 'directory' }> = [];
+    const directories = new Set<string>();
+
+    try {
+      // Find all files in the workspace
+      const files = await vscode.workspace.findFiles(
+        '**/*',
+        '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**,**/build/**,**/.vscode-test/**}',
+        1000
+      );
+
+      for (const file of files) {
+        const relativePath = path.relative(workspaceRoot, file.fsPath);
+
+        // Add the file
+        items.push({ path: relativePath, type: 'file' });
+
+        // Extract and add all parent directories
+        const parts = relativePath.split(path.sep);
+        for (let i = 1; i < parts.length; i++) {
+          const dirPath = parts.slice(0, i).join(path.sep);
+          if (dirPath && !directories.has(dirPath)) {
+            directories.add(dirPath);
+            items.push({ path: dirPath, type: 'directory' });
+          }
+        }
+      }
+
+      items.sort((a, b) => {
+        if (a.type === b.type) {
+          return a.path.localeCompare(b.path);
+        }
+        return a.type === 'directory' ? -1 : 1;
+      });
+
+      return items;
+    } catch (error) {
+      logger.error('Failed to get workspace files', error as Error);
+      return [];
+    }
   }
 
   private async sendActiveTasks() {
@@ -274,6 +323,31 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async handleStopQuery() {
+    logger.info('WebviewProvider: Stop query requested');
+
+    if (this._activeQueryController) {
+      this._activeQueryController.abort();
+      this._activeQueryController = undefined;
+
+      logger.info('WebviewProvider: Query aborted');
+
+      if (this._view) {
+        this._view.webview.postMessage({
+          type: 'queryResponse',
+          data: {
+            loading: false,
+            response: 'Query stopped by user',
+            success: false,
+            cancelled: true
+          }
+        });
+      }
+    } else {
+      logger.warn('WebviewProvider: No active query to stop');
+    }
+  }
+
   private async handleModelSelection(model: string) {
     // Update configuration
     await vscode.workspace.getConfiguration('codemind').update(
@@ -293,20 +367,28 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    if (this._activeQueryController) {
+      this._activeQueryController.abort();
+    }
+
+    this._activeQueryController = new AbortController();
+    const signal = this._activeQueryController.signal;
+
     try {
-      // Send loading state
       logger.info('WebviewProvider: Sending loading state to webview');
       this._view.webview.postMessage({
         type: 'queryResponse',
         data: { loading: true }
       });
 
-      // Parse query for @ file references and / commands
+      if (signal.aborted) {
+        throw new Error('Query was cancelled');
+      }
+
       logger.info('WebviewProvider: Parsing query...');
       const { cleanQuery, files, command } = await this.parseQuery(query);
       logger.info(`WebviewProvider: Parsed query. Command: ${command}, Files: ${files.length}`);
 
-      // Determine agent type based on command
       let agentType: any = 'coder';
       if (command) {
         switch (command) {
@@ -337,8 +419,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         type: agentType,
         description: cleanQuery,
         context: {
-          files: files,
-          userPrompt: `${cleanQuery}\n\n${SYSTEM_INSTRUCTION}`,
+          files: files.map(f => f.path), // Keep paths for reference
+          userPrompt: this.buildPromptWithFiles(cleanQuery, files),
           modelId: modelId // Pass selected model ID
         },
         priority: 1,
@@ -346,7 +428,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         createdAt: Date.now()
       };
 
-      // Execute query through agent orchestrator with timeout
       logger.info(`WebviewProvider: Executing task ${task.id}`);
 
       const timeoutPromise = new Promise<any>((_, reject) => {
@@ -355,12 +436,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       const executionPromise = agentOrchestrator.executeTask(task);
 
-      // Race between execution and timeout
       const result: any = await Promise.race([executionPromise, timeoutPromise]);
-      logger.info(`WebProvider query reponse=${result}`);
       logger.info(`WebviewProvider: Task ${task.id} completed with success=${result.success}`);
 
-      // Send response
       if (result.success) {
         this._view.webview.postMessage({
           type: 'queryResponse',
@@ -372,7 +450,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           }
         });
       } else {
-        // Handle agent failure
         const errorMessage = result.warnings && result.warnings.length > 0 ? result.warnings[0] : 'Unknown error occurred';
         this._view.webview.postMessage({
           type: 'queryResponse',
@@ -384,8 +461,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         });
       }
     } catch (error: any) {
+      if (signal.aborted || error.message === 'Query was cancelled') {
+        logger.info('WebviewProvider: Query was cancelled');
+        return;
+      }
+
       logger.error('WebviewProvider: Error handling query', error);
-      // Send error
       this._view.webview.postMessage({
         type: 'queryResponse',
         data: {
@@ -394,44 +475,55 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           success: false
         }
       });
+    } finally {
+      if (this._activeQueryController?.signal === signal) {
+        this._activeQueryController = undefined;
+      }
     }
   }
 
-  private async parseQuery(query: string): Promise<{ cleanQuery: string; files: string[]; command?: string }> {
-    const files: string[] = [];
+  private async parseQuery(query: string): Promise<{ cleanQuery: string; files: Array<{ path: string; content: string }>; command?: string }> {
+    const files: Array<{ path: string; content: string }> = [];
     let command: string | undefined;
     let cleanQuery = query;
 
-    // Parse @ file references
     const fileMatches = query.matchAll(/@([\w\-\.\/]+)/g);
     for (const match of fileMatches) {
       const fileRef = match[1];
-
-      // Try to resolve file path
       const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (workspaceRoot) {
-        const filePath = `${workspaceRoot}/${fileRef}`;
+        let filePath = `${workspaceRoot}/${fileRef}`;
+        let fileUri: vscode.Uri | null = null;
 
-        // Check if file exists
         try {
-          await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-          files.push(filePath);
+          fileUri = vscode.Uri.file(filePath);
+          await vscode.workspace.fs.stat(fileUri);
         } catch {
-          // File doesn't exist, try without workspace root
           try {
-            await vscode.workspace.fs.stat(vscode.Uri.file(fileRef));
-            files.push(fileRef);
+            filePath = fileRef;
+            fileUri = vscode.Uri.file(fileRef);
+            await vscode.workspace.fs.stat(fileUri);
           } catch {
             logger.info(`File not found: ${fileRef}`);
+            fileUri = null;
+          }
+        }
+
+        if (fileUri) {
+          try {
+            const fileContent = await vscode.workspace.fs.readFile(fileUri);
+            const content = Buffer.from(fileContent).toString('utf8');
+            files.push({ path: filePath, content });
+            logger.info(`Loaded file content for: ${filePath} (${content.length} bytes)`);
+          } catch (error) {
+            logger.error(`Failed to read file ${filePath}:`, error as Error);
           }
         }
       }
 
-      // Remove @ reference from query
       cleanQuery = cleanQuery.replace(match[0], '').trim();
     }
 
-    // Parse / command
     const commandMatch = query.match(/^\/(\w+)\s*/);
     if (commandMatch) {
       command = commandMatch[1];
@@ -439,6 +531,21 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
 
     return { cleanQuery, files, command };
+  }
+
+
+  private buildPromptWithFiles(cleanQuery: string, files: Array<{ path: string; content: string }>): string {
+    let prompt = cleanQuery;
+
+    if (files.length > 0) {
+      prompt += '\n\n## Referenced Files\n\n';
+      for (const file of files) {
+        prompt += `### File: ${file.path}\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+      }
+    }
+
+    prompt += `\n\n${SYSTEM_INSTRUCTION}`;
+    return prompt;
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {

@@ -11,7 +11,6 @@ export class GeminiProvider extends BaseProvider {
     private client?: GoogleGenerativeAI;
 
     constructor(apiKey?: string) {
-        // Trim whitespace from API key (common copy-paste issue)
         const trimmedKey = apiKey?.trim();
 
         super('gemini', trimmedKey);
@@ -37,8 +36,6 @@ export class GeminiProvider extends BaseProvider {
             return false;
         }
 
-        // Simple check - just verify client is initialized
-        // Don't make actual API calls in availability check as it's too aggressive
         try {
             logger.info(`Gemini API key length: ${this.apiKey.length}`);
             logger.info(`Gemini API key starts with: ${this.apiKey.substring(0, 4)}`);
@@ -99,7 +96,8 @@ export class GeminiProvider extends BaseProvider {
 
     async streamCompletion(
         request: AIRequest,
-        onChunk: (chunk: string) => void
+        onChunk: (chunk: string) => void,
+        signal?: AbortSignal
     ): Promise<AIResponse> {
         if (!this.client) {
             throw new Error('Gemini client not initialized');
@@ -123,6 +121,12 @@ export class GeminiProvider extends BaseProvider {
             const result = await model.generateContentStream(prompt);
 
             for await (const chunk of result.stream) {
+                // Check if request was aborted
+                if (signal?.aborted) {
+                    logger.info('Gemini streaming cancelled by user');
+                    throw new Error('Request cancelled');
+                }
+
                 const chunkText = chunk.text();
                 fullContent += chunkText;
                 onChunk(chunkText);

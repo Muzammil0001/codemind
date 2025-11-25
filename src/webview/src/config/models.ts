@@ -21,13 +21,13 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
         provider: 'openai',
         apiKeyRequired: true,
     },
-    {
-        value: 'gemini-flash',
-        label: 'Gemini 2.5 Flash',
-        badge: 'Fast',
-        provider: 'google',
-        apiKeyRequired: true,
-    },
+    // {
+    //     value: 'gemini-flash',
+    //     label: 'Gemini 2.5 Flash',
+    //     badge: 'Fast',
+    //     provider: 'google',
+    //     apiKeyRequired: true,
+    // },
     {
         value: 'gemini-pro',
         label: 'Gemini 2.0 Pro',
@@ -58,7 +58,7 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
     },
 ] as const;
 
-export const DEFAULT_MODEL = 'chatgpt-4';
+export const DEFAULT_MODEL = 'gemini-pro';
 
 export const getModelLabel = (modelValue: string): string => {
     return AVAILABLE_MODELS.find(m => m.value === modelValue)?.label || 'Select Model';

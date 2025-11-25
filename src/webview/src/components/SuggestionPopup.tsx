@@ -1,9 +1,9 @@
 import React from 'react';
-import { File, Zap } from 'lucide-react';
+import { File, Folder, Zap } from 'lucide-react';
 
 interface Suggestion {
     text: string;
-    type: 'file' | 'command';
+    type: 'file' | 'directory' | 'command';
 }
 
 interface SuggestionPopupProps {
@@ -28,19 +28,23 @@ export const SuggestionPopup: React.FC<SuggestionPopupProps> = ({
                     <div
                         key={index}
                         className={`flex items-center gap-3 px-4 py-3 cursor-pointer text-sm transition-all duration-150 ${index === selectedIndex
-                                ? 'bg-blue-600 text-white'
-                                : 'text-zinc-300 hover:bg-zinc-800'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-zinc-300 hover:bg-zinc-800'
                             }`}
                         onClick={() => onSelect(suggestion)}
                     >
                         <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${index === selectedIndex
-                                ? 'bg-white/20'
-                                : suggestion.type === 'file'
-                                    ? 'bg-blue-500/10 text-blue-400'
+                            ? 'bg-white/20'
+                            : suggestion.type === 'file'
+                                ? 'bg-blue-500/10 text-blue-400'
+                                : suggestion.type === 'directory'
+                                    ? 'bg-yellow-500/10 text-yellow-400'
                                     : 'bg-purple-500/10 text-purple-400'
                             }`}>
                             {suggestion.type === 'file' ? (
                                 <File size={16} />
+                            ) : suggestion.type === 'directory' ? (
+                                <Folder size={16} />
                             ) : (
                                 <Zap size={16} />
                             )}

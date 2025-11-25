@@ -6,7 +6,9 @@ import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
 import { modelRouter } from '../ai/ModelRouter';
 import { projectBrain } from '../brain/ProjectBrain';
+import { fileOperationManager } from '../operations/FileOperationManager';
 import * as vscode from 'vscode';
+import { logger } from '../utils/logger';
 
 export class CoderAgent extends BaseAgent {
     constructor() {
@@ -25,17 +27,35 @@ export class CoderAgent extends BaseAgent {
             model: task.context.modelId
         }, 'code-generation');
 
+        // Detect and execute file operations
+        const operations = this.extractFileOperations(response.content);
+        let operationsExecuted = 0;
+
+        if (operations.length > 0) {
+            logger.info(`Detected ${operations.length} file operation(s)`);
+
+            for (const operation of operations) {
+                try {
+                    await fileOperationManager.executeOperation(operation);
+                    operationsExecuted++;
+                } catch (error) {
+                    logger.error(`Failed to execute operation: ${operation.type} on ${operation.path}`, error as Error);
+                }
+            }
+        }
+
         const code = this.extractCode(response.content);
         const linesChanged = code.split('\n').length;
 
-        return this.createResult(task.id, true, code, {
+        return this.createResult(task.id, true, response.content, {
             metrics: {
                 tokensUsed: response.tokensUsed,
                 latency: response.latency,
-                linesChanged
+                linesChanged,
+                operationsExecuted
             },
             suggestions: [
-                'Review generated code for correctness',
+                operationsExecuted > 0 ? `Executed ${operationsExecuted} file operation(s)` : 'Review generated code for correctness',
                 'Run tests after applying changes',
                 'Consider adding error handling'
             ]
@@ -93,6 +113,36 @@ export class CoderAgent extends BaseAgent {
         prompt += `Generate the code:`;
 
         return prompt;
+    }
+
+    private extractFileOperations(response: string): any[] {
+        const operations: any[] = [];
+
+        // Match JSON code blocks with file operations
+        const jsonBlockRegex = /```json\s*\n([\s\S]*?)\n```/g;
+        let match;
+
+        while ((match = jsonBlockRegex.exec(response)) !== null) {
+            try {
+                const jsonContent = match[1];
+                const parsed = JSON.parse(jsonContent);
+
+                // Check if it's a file operation
+                if (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move'].includes(parsed.operation)) {
+                    operations.push({
+                        type: parsed.operation,
+                        path: parsed.path,
+                        content: parsed.content,
+                        newPath: parsed.newPath
+                    });
+                }
+            } catch (error) {
+                // Not valid JSON or not a file operation, skip
+                continue;
+            }
+        }
+
+        return operations;
     }
 
     private extractCode(response: string): string {

@@ -14,7 +14,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
 
     useEffect(() => {
         if (codeRef.current) {
-            // Apply syntax highlighting
             hljs.highlightElement(codeRef.current);
         }
     }, [code, language]);

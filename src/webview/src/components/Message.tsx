@@ -12,8 +12,8 @@ interface MessageProps {
 }
 
 export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, onEdit }) => {
+    console.log("===msg-content=====>>", content);
     const isUser = role === 'user';
-
     const handleEdit = () => {
         if (onEdit && messageIndex !== undefined) {
             onEdit(messageIndex);
@@ -40,12 +40,10 @@ export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, o
                             }`}
                     >
                         {isUser ? (
-                            // User messages: simple text
                             <div className="text-[15px] leading-relaxed whitespace-pre-wrap text-white break-words">
                                 {content}
                             </div>
                         ) : (
-                            // AI messages: markdown with custom components
                             <div className="prose prose-invert prose-sm max-w-none overflow-hidden">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
