@@ -50,6 +50,7 @@ export const PROMPTS = {
         - modify: {"operation": "modify", "path": "...", "content": "..."} 
         - delete: {"operation": "delete", "path": "..."}
         - rename: {"operation": "rename", "path": "old/path", "newPath": "new/path"}
+        - run_script: {"operation": "run_script", "script": "npm run build"}
         
         ## Response Format
         - For file fixes: "I found the issue in [filename]. The problem is [description]. I'll fix it by [solution]."

@@ -8,6 +8,8 @@ import { fileOperationManager } from '../operations/FileOperationManager';
 import * as vscode from 'vscode';
 import { logger } from '../utils/logger';
 import { PROMPTS } from '../config/prompts';
+import { terminalManager } from '../terminal/TerminalManager';
+import { TerminalLocation } from '../types/terminalTypes';
 
 export class CoderAgent extends BaseAgent {
     constructor() {
@@ -54,10 +56,18 @@ export class CoderAgent extends BaseAgent {
 
             for (const operation of operations) {
                 try {
-                    await fileOperationManager.executeOperation(operation);
-                    operationsExecuted++;
+                    if (operation.type === 'run_script') {
+                        logger.info(`Executing script: ${operation.script}`);
+                        await terminalManager.executeCommand(operation.script, {
+                            location: TerminalLocation.MAIN
+                        });
+                        operationsExecuted++;
+                    } else {
+                        await fileOperationManager.executeOperation(operation);
+                        operationsExecuted++;
+                    }
                 } catch (error) {
-                    logger.error(`Failed to execute operation: ${operation.type} on ${operation.path}`, error as Error);
+                    logger.error(`Failed to execute operation: ${operation.type}`, error as Error);
                 }
             }
         }
@@ -69,6 +79,9 @@ export class CoderAgent extends BaseAgent {
         if (operationsExecuted > 0) {
             // Show just the filename, not the full path, with better formatting
             const modifiedFiles = operations.map(op => {
+                if (op.type === 'run_script') {
+                    return `- **Run Script**: \`${op.script}\``;
+                }
                 const filename = op.path.split('/').pop() || op.path;
                 return `- **[${filename}](${op.path})**`;
             }).join('\n');
@@ -187,6 +200,11 @@ export class CoderAgent extends BaseAgent {
                         path: parsed.path,
                         content: parsed.content,
                         newPath: parsed.newPath
+                    });
+                } else if (parsed.operation === 'run_script') {
+                    operations.push({
+                        type: 'run_script',
+                        script: parsed.script
                     });
                 }
             } catch (error) {
