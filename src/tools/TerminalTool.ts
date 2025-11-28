@@ -1,7 +1,4 @@
-/**
- * Terminal Tool
- * Enhanced terminal execution using execa
- */
+
 
 import * as vscode from 'vscode';
 import { execa } from 'execa';
@@ -33,7 +30,7 @@ export class TerminalTool implements BaseTool {
                 timeout,
                 shell,
                 all: true,
-                reject: false // Don't throw on non-zero exit code
+                reject: false 
             });
 
             const duration = Date.now() - startTime;
@@ -59,9 +56,6 @@ export class TerminalTool implements BaseTool {
         }
     }
 
-    /**
-     * Run a command in the integrated VS Code terminal (visible to user)
-     */
     async runInIntegratedTerminal(command: string, name: string = 'CodeMind'): Promise<void> {
         const terminal = vscode.window.terminals.find(t => t.name === name)
             || vscode.window.createTerminal(name);

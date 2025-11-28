@@ -1,7 +1,4 @@
-/**
- * Tool System Types
- * Defines interfaces for all production-grade tools
- */
+
 
 export interface ToolResult<T = any> {
     success: boolean;

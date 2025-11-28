@@ -40,7 +40,6 @@ import type { Message } from '../stores/chatStore';
 export const MainApp = () => {
     const { postMessage } = useVSCode();
 
-    // Chat Store
     const messages = useChatStore(state => state.messages);
     const addMessage = useChatStore(state => state.addMessage);
     const updateMessageCommandId = useChatStore(state => state.updateMessageCommandId);
@@ -54,30 +53,24 @@ export const MainApp = () => {
     const setCurrentSessionId = useChatStore(state => state.switchSession); // Map switchSession to setCurrentSessionId
     const clearMessages = useChatStore(state => state.clearMessages);
 
-    // Agent Store
     const agentStatus = useAgentStore(state => state.status);
     const setAgentStatus = useAgentStore(state => state.setStatus);
 
-    // Model Store
     const selectedModel = useModelStore(state => state.selectedModel);
     const setSelectedModel = useModelStore(state => state.setSelectedModel);
     const providerStatus = useModelStore(state => state.providerStatus);
     const setAllProviderStatus = useModelStore(state => state.setProviderStatus);
 
-    // Notification Store
     const showNotification = useNotificationStore(state => state.addNotification);
 
-    // Terminal Store
     const updateCommand = useTerminalStore(state => state.updateCommand);
     const addOutput = useTerminalStore(state => state.addOutput);
     const { executeCommand } = useTerminal();
     const clearAllCommands = useTerminalStore(state => state.clearCompleted);
 
-    // File Store
     const availableFiles = useFileStore(state => state.files);
     const setAvailableFiles = useFileStore(state => state.setFiles);
 
-    // Local UI state
     const [isReady, setIsReady] = useState(false);
     const [editingMessage, setEditingMessage] = useState<string>('');
     const [showHistory, setShowHistory] = useState(false);
@@ -86,10 +79,8 @@ export const MainApp = () => {
     const [projectScripts, setProjectScripts] = useState<ProjectScripts>({});
     const [pendingCommand, setPendingCommand] = useState<CommandIntent | null>(null);
 
-    // Track the last AI message ID for terminal command updates
     const lastCommandMessageRef = useRef<{ messageId: string; commandId: string } | null>(null);
 
-    // Sync sessionId with store
     useEffect(() => {
         if (currentSessionId) {
             setSessionId(currentSessionId);
@@ -100,7 +91,6 @@ export const MainApp = () => {
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            console.log("MainApp====>>event.data>>>", event.data);
             switch (message.type) {
                 case 'status':
                     if (message.data.files) setAvailableFiles(message.data.files);
@@ -122,10 +112,6 @@ export const MainApp = () => {
                                 message.data.response || 'An error occurred',
                                 'error'
                             );
-                        }
-
-                        if (message.data.success) {
-                            console.log('🤖 Raw Model Response:', message.data.response);
                         }
 
                         const formattedContent = message.data.success
@@ -161,7 +147,6 @@ export const MainApp = () => {
                     if (message.path && message.content) {
                         let newScripts: ProjectScripts = {};
 
-                        // Parse different project configuration files
                         switch (message.path) {
                             case 'package.json':
                                 newScripts = parsePackageJson(message.content);
@@ -189,18 +174,11 @@ export const MainApp = () => {
                                 break;
                         }
 
-                        // Merge with existing scripts from other project files
                         setProjectScripts(prev => mergeProjectScripts(prev, newScripts));
                     }
                     break;
 
                 case 'terminalOutput':
-                    // Handle terminal output from backend
-                    console.log('📥 Received terminalOutput:', {
-                        commandId: message.commandId,
-                        output: message.output,
-                        fullMessage: message
-                    });
                     if (message.commandId && message.output) {
                         const outputContent = typeof message.output === 'string'
                             ? message.output
@@ -213,12 +191,9 @@ export const MainApp = () => {
                             type: outputType,
                             timestamp: Date.now()
                         });
-                        console.log('✅ Added output to store for command:', message.commandId);
 
-                        // Update the message's commandId if it's different from the original
                         if (lastCommandMessageRef.current &&
                             lastCommandMessageRef.current.commandId !== message.commandId) {
-                            console.log('🔄 Updating message commandId from', lastCommandMessageRef.current.commandId, 'to', message.commandId);
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
                             lastCommandMessageRef.current.commandId = message.commandId;
                         }
@@ -226,23 +201,14 @@ export const MainApp = () => {
                     break;
 
                 case 'terminalStatus':
-                    // Handle terminal status updates from backend
-                    console.log('📊 Received terminalStatus:', {
-                        commandId: message.commandId,
-                        status: message.status,
-                        pid: message.pid
-                    });
                     if (message.commandId && message.status) {
                         updateCommand(message.commandId, {
                             status: message.status,
                             pid: message.pid
                         });
-                        console.log('✅ Updated status for command:', message.commandId);
 
-                        // Update the message's commandId if it's different from the original
                         if (lastCommandMessageRef.current &&
                             lastCommandMessageRef.current.commandId !== message.commandId) {
-                            console.log('🔄 Updating message commandId from', lastCommandMessageRef.current.commandId, 'to', message.commandId);
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
                             lastCommandMessageRef.current.commandId = message.commandId;
                         }
@@ -250,24 +216,15 @@ export const MainApp = () => {
                     break;
 
                 case 'terminalComplete':
-                    // Handle terminal completion from backend
-                    console.log('🏁 Received terminalComplete:', {
-                        commandId: message.commandId,
-                        status: message.status,
-                        exitCode: message.exitCode
-                    });
                     if (message.commandId) {
                         updateCommand(message.commandId, {
                             status: message.status || 'completed',
                             exitCode: message.exitCode,
                             endTime: Date.now()
                         });
-                        console.log('✅ Completed command:', message.commandId);
 
-                        // Update the message's commandId if it's different from the original
                         if (lastCommandMessageRef.current &&
                             lastCommandMessageRef.current.commandId !== message.commandId) {
-                            console.log('🔄 Updating message commandId from', lastCommandMessageRef.current.commandId, 'to', message.commandId);
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
                             lastCommandMessageRef.current.commandId = message.commandId;
                         }
@@ -283,21 +240,18 @@ export const MainApp = () => {
         return () => window.removeEventListener('message', handleMessage);
     }, [postMessage]);
 
-    // Load project configuration files for script detection
     useEffect(() => {
-        // Define all supported project config files
         const projectConfigFiles = [
-            'package.json',      // Node.js
-            'composer.json',     // PHP/Laravel
-            'pyproject.toml',    // Python (Poetry)
-            'requirements.txt',  // Python (pip)
-            'pom.xml',           // Java (Maven)
-            'Cargo.toml',        // Rust
-            'Gemfile',           // Ruby/Rails
-            'go.mod'             // Go
+            'package.json',
+            'composer.json',
+            'pyproject.toml',
+            'requirements.txt',
+            'pom.xml',
+            'Cargo.toml',
+            'Gemfile',
+            'go.mod'
         ];
 
-        // Request content for each detected config file
         projectConfigFiles.forEach(configFile => {
             const found = availableFiles.find(f => f.path === configFile);
             if (found) {
@@ -331,8 +285,6 @@ export const MainApp = () => {
         const projectContext = detectProjectContext(availableFiles, projectScripts);
         const platform = detectPlatform();
 
-        // Try AI-powered command analysis first
-        console.log('🔍 Attempting AI command analysis for query:', text);
         try {
             const commandIntent = await analyzeCommandWithAI({
                 userQuery: text,
@@ -341,64 +293,43 @@ export const MainApp = () => {
                 platform
             });
 
-            console.log('📊 AI Command Analysis Result:', commandIntent);
-
             if (commandIntent) {
-                console.log('✅ Command detected!', commandIntent.command);
                 if (commandIntent.requiresConfirmation) {
-                    console.log('⚠️ Command requires confirmation, showing dialog');
                     setPendingCommand(commandIntent);
                 } else {
-                    console.log('🚀 Executing command immediately');
                     const commandId = executeCommand(commandIntent.command);
                     addMessage({ role: 'user', content: text });
                     const messageId = addMessage({ role: 'ai', content: `Executing command: \`${commandIntent.command}\``, commandId });
 
-                    // Track this message for terminal updates
                     lastCommandMessageRef.current = { messageId, commandId };
-                    console.log('📌 Tracking command message:', { messageId, commandId });
                 }
                 return;
-            } else {
-                console.log('ℹ️ No command detected by AI, trying pattern-based detection');
             }
         } catch (error) {
             console.error('❌ AI command analysis failed:', error);
-            console.log('🔄 Falling back to pattern-based detection');
         }
 
-        // Fallback: Pattern-based command detection
         const patternCommandIntent = detectCommandByPattern(text, projectContext);
 
         if (patternCommandIntent) {
-            console.log('✅ Pattern detected command!', patternCommandIntent.command);
             if (patternCommandIntent.requiresConfirmation) {
-                console.log('⚠️ Command requires confirmation, showing dialog');
                 setPendingCommand(patternCommandIntent);
             } else {
-                console.log('🚀 Executing pattern-detected command');
                 const commandId = executeCommand(patternCommandIntent.command);
                 addMessage({ role: 'user', content: text });
                 const messageId = addMessage({ role: 'ai', content: `Executing command: \`${patternCommandIntent.command}\``, commandId });
 
-                // Track this message for terminal updates
                 lastCommandMessageRef.current = { messageId, commandId };
-                console.log('📌 Tracking command message:', { messageId, commandId });
             }
             return;
         }
 
-        console.log('➡️ Not a command, proceeding to normal chat');
-
-        // Build contextual prompt
         const contextualPrompt = buildContextualPrompt(text, messages, projectScripts);
 
-        // Add user message
         addMessage({ role: 'user', content: text });
         setLoading(true);
         setAgentStatus('thinking');
 
-        // Send with context
         postMessage({
             type: 'executeQuery',
             query: contextualPrompt.prompt,
@@ -472,10 +403,7 @@ export const MainApp = () => {
             addMessage({ role: 'user', content: pendingCommand.originalMessage });
             const messageId = addMessage({ role: 'ai', content: `Executing command: \`${pendingCommand.command}\``, commandId });
 
-            // Track this message for terminal updates
             lastCommandMessageRef.current = { messageId, commandId };
-            console.log('📌 Tracking command message:', { messageId, commandId });
-
             setPendingCommand(null);
         }
     };

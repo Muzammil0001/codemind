@@ -15,7 +15,6 @@ interface FileState {
     openFiles: string[];
     fileContent: Record<string, string>;
 
-    // Actions
     setFiles: (files: FileNode[]) => void;
     selectFile: (path: string) => void;
     openFile: (path: string) => void;
@@ -51,7 +50,6 @@ export const useFileStore = create<FileState>((set) => ({
     })),
 
     toggleDirectory: (path) => set((state) => {
-        // Recursive toggle helper
         const toggle = (nodes: FileNode[]): FileNode[] => {
             return nodes.map(node => {
                 if (node.path === path) {

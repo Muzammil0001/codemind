@@ -1,6 +1,4 @@
-/**
- * Base AI Provider interface
- */
+
 
 import { AIRequest, AIResponse, ModelProvider } from '../../types';
 
@@ -43,7 +41,6 @@ export abstract class BaseProvider {
     }
 
     protected estimateTokens(text: string): number {
-        // Rough estimation: ~4 characters per token
         return Math.ceil(text.length / 4);
     }
 

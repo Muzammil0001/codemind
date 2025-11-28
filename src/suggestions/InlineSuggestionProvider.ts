@@ -1,6 +1,4 @@
-/**
- * Inline Suggestion Provider - Real-time code suggestions
- */
+
 
 import * as vscode from 'vscode';
 import { modelRouter } from '../ai/ModelRouter';
@@ -48,12 +46,10 @@ export class InlineSuggestionProvider implements vscode.InlineCompletionItemProv
         const currentLine = document.lineAt(position.line).text;
         const textBeforeCursor = currentLine.substring(0, position.character);
 
-        // Don't suggest if line is empty or just whitespace
         if (!textBeforeCursor.trim()) {
             return undefined;
         }
 
-        // Get context
         const context = this.getContext(document, position);
         const prompt = this.buildPrompt(context, textBeforeCursor);
 
@@ -61,8 +57,8 @@ export class InlineSuggestionProvider implements vscode.InlineCompletionItemProv
             const response = await modelRouter.generateCompletion({
                 prompt,
                 systemPrompt: 'You are a highly accurate code completion engine. Your task is to complete the code based on the context provided. Return ONLY the code completion. Do not include markdown formatting, explanations, or the original code.',
-                maxTokens: 50, // Short completion
-                temperature: 0.1 // Very deterministic
+                maxTokens: 50, 
+                temperature: 0.1 
             }, 'code-completion');
 
             return this.extractCompletion(response.content, textBeforeCursor);
@@ -73,13 +69,12 @@ export class InlineSuggestionProvider implements vscode.InlineCompletionItemProv
     }
 
     private getContext(document: vscode.TextDocument, position: vscode.Position): string {
-        const startLine = Math.max(0, position.line - 20); // More context
+        const startLine = Math.max(0, position.line - 20); 
         const endLine = Math.min(document.lineCount - 1, position.line + 5);
 
         const lines: string[] = [];
         for (let i = startLine; i <= endLine; i++) {
             if (i === position.line) {
-                // Mark cursor position
                 const lineText = document.lineAt(i).text;
                 lines.push(lineText.substring(0, position.character) + '<CURSOR>' + lineText.substring(position.character));
             } else {
@@ -99,15 +94,12 @@ Completion:`;
     }
 
     private extractCompletion(response: string, prefix: string): string {
-        // Remove code blocks if present
         let completion = response.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
 
-        // Remove the prefix if AI repeated it
         if (completion.startsWith(prefix)) {
             completion = completion.substring(prefix.length);
         }
 
-        // Only return the first line or up to the first closing brace/semicolon if it makes sense
         const lines = completion.split('\n');
         return lines[0].trimEnd();
     }

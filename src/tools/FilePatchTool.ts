@@ -1,7 +1,4 @@
-/**
- * File Patch Tool
- * Intelligent file patching with diff-match-patch and conflict resolution
- */
+
 
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
@@ -37,26 +34,21 @@ export class FilePatchTool implements BaseTool {
 
             const fullPath = path.join(workspaceRoot, filePath);
 
-            // Validate file exists
             if (!await fs.pathExists(fullPath)) {
                 throw new Error(`File not found: ${filePath}`);
             }
 
-            // Read original content
             const originalContent = await fs.readFile(fullPath, 'utf-8');
 
-            // Create backup if requested
             let backupPath: string | undefined;
             if (createBackup) {
                 backupPath = `${fullPath}.backup.${Date.now()}`;
                 await fs.writeFile(backupPath, originalContent);
             }
 
-            // Parse and apply patch
             const patches = this.dmp.patch_fromText(patch);
             const [patchedContent, results] = this.dmp.patch_apply(patches, originalContent);
 
-            // Check for conflicts
             const conflicts: PatchResult['conflicts'] = [];
             let hasConflicts = false;
 
@@ -72,20 +64,16 @@ export class FilePatchTool implements BaseTool {
                 }
             }
 
-            // Handle conflicts
             if (hasConflicts) {
                 if (resolveConflicts === 'fail') {
                     throw new Error(`Patch has conflicts. ${conflicts.length} conflict(s) detected.`);
                 } else if (resolveConflicts === 'auto') {
-                    // Try to auto-resolve by using fuzzy matching
                     logger.warn('Auto-resolving conflicts with fuzzy matching');
                 } else {
-                    // Manual resolution required
                     throw new Error('Manual conflict resolution required');
                 }
             }
 
-            // Validate before applying
             if (validateBeforeApply) {
                 const isValid = await this.validatePatch(fullPath, patchedContent);
                 if (!isValid) {
@@ -93,10 +81,8 @@ export class FilePatchTool implements BaseTool {
                 }
             }
 
-            // Apply patch
             await fs.writeFile(fullPath, patchedContent);
 
-            // Calculate changes
             const changes = this.calculateChanges(originalContent, patchedContent);
 
             return {
@@ -118,16 +104,11 @@ export class FilePatchTool implements BaseTool {
         }
     }
 
-    /**
-     * Validate that patched content is syntactically valid
-     */
     private async validatePatch(filePath: string, content: string): Promise<boolean> {
         try {
             const ext = path.extname(filePath);
 
-            // For TypeScript/JavaScript, try to parse
             if (['.ts', '.tsx', '.js', '.jsx'].includes(ext)) {
-                // Simple validation: check for balanced braces
                 const openBraces = (content.match(/\{/g) || []).length;
                 const closeBraces = (content.match(/\}/g) || []).length;
                 const openParens = (content.match(/\(/g) || []).length;
@@ -136,16 +117,12 @@ export class FilePatchTool implements BaseTool {
                 return openBraces === closeBraces && openParens === closeParens;
             }
 
-            // For other files, assume valid
             return true;
         } catch (error) {
             return false;
         }
     }
 
-    /**
-     * Calculate changes between original and patched content
-     */
     private calculateChanges(original: string, patched: string): PatchResult['changes'] {
         const diffs = this.dmp.diff_main(original, patched);
         this.dmp.diff_cleanupSemantic(diffs);
@@ -157,12 +134,11 @@ export class FilePatchTool implements BaseTool {
         for (const [op, text] of diffs) {
             const lines = text.split('\n').length - 1;
 
-            if (op === 1) { // Insert
+            if (op === 1) { 
                 additions += lines;
-            } else if (op === -1) { // Delete
+            } else if (op === -1) { 
                 deletions += lines;
-            } else { // Equal
-                // Count as modification if surrounded by changes
+            } else { 
                 modifications += 0;
             }
         }
@@ -170,9 +146,6 @@ export class FilePatchTool implements BaseTool {
         return { additions, deletions, modifications };
     }
 
-    /**
-     * Create a unified diff patch
-     */
     async createPatch(filePath: string, newContent: string): Promise<string> {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (!workspaceRoot) {
@@ -188,9 +161,6 @@ export class FilePatchTool implements BaseTool {
         return this.dmp.patch_toText(patches);
     }
 
-    /**
-     * Apply multiple patches to multiple files
-     */
     async applyMultiplePatches(patches: Array<{ filePath: string; patch: string }>): Promise<ToolResult<PatchResult[]>> {
         const results: PatchResult[] = [];
         const errors: string[] = [];

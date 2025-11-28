@@ -1,6 +1,4 @@
-/**
- * Image-to-Code Agent - Converts UI screenshots to code
- */
+
 
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
@@ -23,7 +21,6 @@ export class ImageToCodeAgent extends BaseAgent {
         const framework = await this.detectUIFramework();
         const prompt = this.buildImageToCodePrompt(framework, task.description);
 
-        // Note: This requires Gemini Vision or similar vision-capable model
         const response = await modelRouter.generateCompletion({
             prompt,
             systemPrompt: 'You are an expert at converting UI designs to code. Generate clean, responsive, production-ready code.',
@@ -113,7 +110,6 @@ export class ImageToCodeAgent extends BaseAgent {
                 `Converting ${imagePath} to code...`
             );
 
-            // Create task for conversion
             const task: AgentTask = {
                 id: `image-to-code-${Date.now()}`,
                 type: 'image-to-code',
@@ -130,7 +126,6 @@ export class ImageToCodeAgent extends BaseAgent {
             const result = await this.execute(task);
 
             if (result.success) {
-                // Create new file with generated code
                 const fileName = 'GeneratedComponent.tsx';
                 const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 

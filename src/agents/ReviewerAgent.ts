@@ -1,6 +1,4 @@
-/**
- * Reviewer Agent - Reviews code for quality and security
- */
+
 
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
@@ -37,7 +35,6 @@ export class ReviewerAgent extends BaseAgent {
 
     private async getCodeToReview(task: AgentTask): Promise<string> {
         if (task.context.files.length > 0) {
-            // Review specific files
             const codes: string[] = [];
 
             for (const filePath of task.context.files) {
@@ -51,10 +48,8 @@ export class ReviewerAgent extends BaseAgent {
 
             return codes.join('\n\n');
         } else if (task.context.codeSelection) {
-            // Review selected code
             return task.context.userPrompt;
         } else {
-            // Review current file
             const editor = vscode.window.activeTextEditor;
             if (editor) {
                 return editor.document.getText();
@@ -102,14 +97,12 @@ export class ReviewerAgent extends BaseAgent {
         const suggestions: string[] = [];
         const issues: string[] = [];
 
-        // Extract issues
         const issuesMatch = content.match(/## Issues Found\s*([\s\S]*?)(?=##|$)/);
         if (issuesMatch) {
             const issueLines = issuesMatch[1].split('\n').filter(line => line.trim().startsWith('-'));
             issues.push(...issueLines.map(line => line.trim().substring(1).trim()));
         }
 
-        // Extract recommendations
         const recsMatch = content.match(/## Recommendations\s*([\s\S]*?)(?=##|$)/);
         if (recsMatch) {
             const recLines = recsMatch[1].split('\n').filter(line => line.trim().startsWith('-'));

@@ -1,6 +1,4 @@
-/**
- * Logging utility for CodeMind AI
- */
+
 
 import * as vscode from 'vscode';
 
@@ -52,12 +50,10 @@ class Logger {
 
         this.outputChannel.appendLine(logMessage);
 
-        // Also log to console in development
         if (process.env.NODE_ENV === 'development') {
             console.log(logMessage);
         }
 
-        // Show error messages to user
         if (level === LogLevel.ERROR) {
             vscode.window.showErrorMessage(`CodeMind AI: ${message}`);
         }

@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Define the Editor API type
 interface VSCodeApi {
     postMessage(message: any): void;
     getState(): any;
     setState(state: any): void;
 }
 
-// Declare the acquireVsCodeApi function
 declare global {
     interface Window {
         vscode: VSCodeApi;

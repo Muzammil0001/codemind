@@ -26,7 +26,6 @@ export const ChatTextArea: React.FC<ChatTextAreaProps> = ({
         }
     }, [value]);
 
-    // Focus when value changes externally (like during edit)
     useEffect(() => {
         if (value && textareaRef.current) {
             textareaRef.current.focus();

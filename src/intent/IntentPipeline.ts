@@ -1,7 +1,4 @@
-/**
- * Intent Pipeline
- * Multi-stage intent detection using NLP, fuzzy matching, and embeddings
- */
+
 
 import nlp from 'compromise';
 import { distance } from 'fuzzball';
@@ -43,17 +40,14 @@ export class IntentPipeline {
 
     async analyze(query: string): Promise<IntentResult> {
         try {
-            // Stage 1: Normalize and Tokenize
             const doc = nlp(query);
             const normalized = doc.normalize().text();
 
-            // Stage 2: Keyword/Fuzzy Matching
             const keywordIntent = this.detectByKeywords(normalized);
             if (keywordIntent && keywordIntent.confidence > 0.8) {
                 return keywordIntent;
             }
 
-            // Stage 3: LLM Fallback (most reliable for complex queries)
             return await this.detectWithLLM(query);
 
         } catch (error) {
@@ -72,7 +66,6 @@ export class IntentPipeline {
 
         for (const [action, synonyms] of Object.entries(this.synonyms)) {
             if (words.some(w => w === action || synonyms.includes(w))) {
-                // Map action to intent
                 const intent = this.mapActionToIntent(action);
                 if (intent) {
                     return {

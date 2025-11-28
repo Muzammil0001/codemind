@@ -1,7 +1,3 @@
-/**
- * Planner Agent - Creates step-by-step execution plans
- */
-
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult, ExecutionPlan, PlanStep } from '../types';
 import { modelRouter } from '../ai/ModelRouter';
@@ -49,7 +45,6 @@ export class PlannerAgent extends BaseAgent {
             prompt += `\n`;
         }
 
-        // Add project context if available
         const brainState = projectBrain.getState();
         if (brainState) {
             prompt += `Project context:\n`;
@@ -83,7 +78,6 @@ export class PlannerAgent extends BaseAgent {
 
     private parsePlan(content: string): ExecutionPlan {
         try {
-            // Extract JSON from response
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
                 throw new Error('No JSON found in response');
@@ -112,7 +106,6 @@ export class PlannerAgent extends BaseAgent {
                 createdAt: Date.now()
             };
         } catch (error) {
-            // Fallback: create a simple plan
             return {
                 id: `plan-${Date.now()}`,
                 steps: [{

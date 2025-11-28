@@ -1,6 +1,4 @@
-/**
- * Ollama Local LLM Provider
- */
+
 
 import axios from 'axios';
 import { BaseProvider } from './BaseProvider';
@@ -50,7 +48,7 @@ export class OllamaProvider extends BaseProvider {
                     }
                 },
                 {
-                    timeout: 120000 // Local models can be slower
+                    timeout: 120000
                 }
             );
 
@@ -108,7 +106,7 @@ export class OllamaProvider extends BaseProvider {
                                 onChunk(parsed.response);
                             }
                         } catch (e) {
-                            // Ignore parse errors
+                            logger.error('Error parsing Ollama response', e);
                         }
                     }
                 });

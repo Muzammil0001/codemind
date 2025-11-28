@@ -1,6 +1,4 @@
-/**
- * File Operation Manager - Safe file operation handler with permissions
- */
+
 
 import * as vscode from 'vscode';
 import { FileOperation } from '../types';
@@ -20,14 +18,12 @@ export class FileOperationManager {
     async executeOperation(operation: FileOperation): Promise<void> {
         logger.info(`Executing file operation: ${operation.type} on ${operation.path}`);
 
-        // Classify the operation
         const action = actionClassifier.classifyFileOperation(
             operation.type,
             operation.path,
             operation.content
         );
 
-        // Request permission if needed
         if (this.permissionEngine) {
             const decision = await this.permissionEngine.requestPermission(action);
 
@@ -37,7 +33,6 @@ export class FileOperationManager {
             }
         }
 
-        // Create backup for destructive operations
         if (['modify', 'delete', 'rename', 'move'].includes(operation.type)) {
             try {
                 await backupManager.createBackup(operation.path, `Before ${operation.type}`);
@@ -46,7 +41,6 @@ export class FileOperationManager {
             }
         }
 
-        // Execute the operation
         try {
             switch (operation.type) {
                 case 'create':
@@ -79,7 +73,6 @@ export class FileOperationManager {
 
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
 
-        // Open the file
         const document = await vscode.workspace.openTextDocument(uri);
         await vscode.window.showTextDocument(document);
     }
@@ -90,7 +83,6 @@ export class FileOperationManager {
         const editor = await vscode.window.showTextDocument(document);
 
         if (operation.diff) {
-            // Apply diff
             const changes = diffGenerator.generateMinimalDiff(
                 document.getText(),
                 operation.diff.modified
@@ -108,7 +100,6 @@ export class FileOperationManager {
                 }
             });
         } else if (operation.content) {
-            // Replace entire content
             const fullRange = new vscode.Range(
                 document.positionAt(0),
                 document.positionAt(document.getText().length)

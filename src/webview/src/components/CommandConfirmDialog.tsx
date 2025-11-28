@@ -1,7 +1,4 @@
-/**
- * Command Confirmation Dialog
- * Shows confirmation before executing potentially dangerous commands
- */
+
 
 import { AlertTriangle, Terminal, X } from 'lucide-react';
 
@@ -43,7 +40,6 @@ export function CommandConfirmDialog({
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full mx-4 animate-slideUp">
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
                         <AlertTriangle size={20} className={getRiskColor().split(' ')[0]} />
@@ -59,16 +55,13 @@ export function CommandConfirmDialog({
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="px-6 py-4 space-y-4">
-                    {/* Risk warning */}
                     <div className={`p-3 rounded border ${getRiskColor()}`}>
                         <p className="text-sm">
                             {getRiskMessage()}
                         </p>
                     </div>
 
-                    {/* Command display */}
                     <div>
                         <label className="text-sm text-zinc-400 mb-2 block">
                             Command to execute:
@@ -81,7 +74,6 @@ export function CommandConfirmDialog({
                         </div>
                     </div>
 
-                    {/* Warning text for dangerous commands */}
                     {riskLevel === 'dangerous' && (
                         <div className="bg-red-950/30 border border-red-900/50 rounded p-3">
                             <p className="text-sm text-red-300 font-medium">
@@ -91,7 +83,6 @@ export function CommandConfirmDialog({
                     )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800">
                     <button
                         onClick={onCancel}
@@ -103,8 +94,8 @@ export function CommandConfirmDialog({
                     <button
                         onClick={onConfirm}
                         className={`px-4 py-2 text-sm font-medium rounded transition-colors ${riskLevel === 'dangerous'
-                                ? 'bg-red-600 hover:bg-red-700 text-white'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
                             }`}
                     >
                         {riskLevel === 'dangerous' ? 'Execute Anyway' : 'Execute Command'}

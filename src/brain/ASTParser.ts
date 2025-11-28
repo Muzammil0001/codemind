@@ -1,8 +1,4 @@
-/**
- * AST Parser - Parses code using tree-sitter for multi-language support
- */
 
-// Import types only, not the actual module
 type Parser = any;
 type SyntaxNode = any;
 

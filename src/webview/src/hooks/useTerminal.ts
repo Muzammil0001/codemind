@@ -1,6 +1,4 @@
-/**
- * Terminal hook for managing terminal commands and output
- */
+
 
 import { useCallback } from 'react';
 import { useVSCode } from './useVSCode';
@@ -24,7 +22,6 @@ export interface UseTerminalReturn {
 export function useTerminal(): UseTerminalReturn {
     const { postMessage } = useVSCode();
 
-    // Use Zustand store instead of local state
     const commands = useTerminalStore(state => state.commands);
     const addCommand = useTerminalStore(state => state.addCommand);
     const updateCommand = useTerminalStore(state => state.updateCommand);
@@ -44,10 +41,8 @@ export function useTerminal(): UseTerminalReturn {
             location: 'chat'
         };
 
-        // Add to store
         addCommand(newCommand);
 
-        // Send to backend
         postMessage({
             type: 'runCommand',
             command,

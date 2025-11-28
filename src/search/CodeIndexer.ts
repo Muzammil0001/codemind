@@ -1,8 +1,3 @@
-/**
- * Code Indexer
- * Handles incremental indexing of the codebase for semantic search
- */
-
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
 import * as path from 'path';
@@ -19,7 +14,7 @@ export interface CodeIndexEntry {
 }
 
 export class CodeIndexer {
-    private index: any; // Use any to bypass type issues with FlexSearch
+    private index: any;
     private fileHashes: Map<string, string> = new Map();
     private isIndexing: boolean = false;
 
@@ -61,13 +56,11 @@ export class CodeIndexer {
             const content = await fs.readFile(uri.fsPath, 'utf-8');
             const relativePath = vscode.workspace.asRelativePath(uri);
 
-            // Check if file changed
             const hash = this.computeHash(content);
             if (this.fileHashes.get(relativePath) === hash) {
-                return; // Skip if unchanged
+                return;
             }
 
-            // Add to index
             this.index.add(relativePath, content);
             this.fileHashes.set(relativePath, hash);
 
@@ -84,7 +77,6 @@ export class CodeIndexer {
     }
 
     private computeHash(content: string): string {
-        // Simple hash for change detection
         let hash = 0;
         for (let i = 0; i < content.length; i++) {
             const char = content.charCodeAt(i);

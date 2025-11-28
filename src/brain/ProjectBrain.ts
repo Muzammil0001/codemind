@@ -1,6 +1,4 @@
-/**
- * Project Brain - Main intelligence engine coordinating codebase analysis
- */
+
 
 import * as vscode from 'vscode';
 import { ProjectBrainState, CodeStyle, DetectedFramework } from '../types';
@@ -21,7 +19,6 @@ export class ProjectBrain {
         this.workspaceRoot = workspaceRoot;
         logger.info(`Initializing Project Brain for: ${workspaceRoot}`);
 
-        // Check cache first
         const cacheKey = `project-brain-${workspaceRoot}`;
         const cached = analysisCache.get(cacheKey);
 
@@ -52,32 +49,27 @@ export class ProjectBrain {
                 title: 'CodeMind AI: Analyzing codebase...',
                 cancellable: false
             }, async (progress) => {
-                // Step 1: Build dependency graph
                 progress.report({ message: 'Building dependency graph...', increment: 0 });
                 const dependencyGraph = await performanceMonitor.measure(
                     'build-dependency-graph',
                     () => dependencyGraphBuilder.buildGraph(this.workspaceRoot!)
                 );
 
-                // Step 2: Detect frameworks
                 progress.report({ message: 'Detecting frameworks...', increment: 25 });
                 const frameworks = await performanceMonitor.measure(
                     'detect-frameworks',
                     () => frameworkDetector.detectFrameworks(this.workspaceRoot!)
                 );
 
-                // Step 3: Analyze coding style
                 progress.report({ message: 'Analyzing coding style...', increment: 50 });
                 const codeStyle = await performanceMonitor.measure(
                     'analyze-style',
                     () => styleAnalyzer.analyzeProjectStyle(this.workspaceRoot!)
                 );
 
-                // Step 4: Calculate statistics
                 progress.report({ message: 'Calculating statistics...', increment: 75 });
                 const stats = this.calculateStatistics(dependencyGraph);
 
-                // Create state
                 this.state = {
                     rootPath: this.workspaceRoot!,
                     fileCount: dependencyGraph.nodes.size,
@@ -89,7 +81,6 @@ export class ProjectBrain {
                     analysisProgress: 100
                 };
 
-                // Cache the state
                 const cacheKey = `project-brain-${this.workspaceRoot}`;
                 analysisCache.set(cacheKey, this.state);
 
@@ -120,11 +111,9 @@ export class ProjectBrain {
         const languages = new Map<string, number>();
 
         for (const [_, fileNode] of dependencyGraph.nodes.entries()) {
-            // Estimate lines from file size (rough approximation)
             const estimatedLines = Math.ceil(fileNode.size / 40);
             totalLines += estimatedLines;
 
-            // Count files by language
             const lang = fileNode.language;
             languages.set(lang, (languages.get(lang) || 0) + 1);
         }
@@ -157,10 +146,8 @@ export class ProjectBrain {
         const dependencies = dependencyGraphBuilder.getDependencies(filePath);
         const dependents = dependencyGraphBuilder.getDependents(filePath);
 
-        // Find related files (files in same directory or with similar names)
         const relatedFiles = this.findRelatedFiles(filePath);
 
-        // Determine framework context
         const framework = this.getFrameworkForFile(filePath);
 
         return {
@@ -181,17 +168,15 @@ export class ProjectBrain {
         const directory = filePath.substring(0, filePath.lastIndexOf('/'));
 
         for (const [path, _] of this.state.dependencyGraph.nodes.entries()) {
-            // Same directory
             if (path.startsWith(directory) && path !== filePath) {
                 related.push(path);
             }
-            // Similar name (e.g., UserCard.tsx and UserCard.test.tsx)
             else if (path.includes(fileName) && path !== filePath) {
                 related.push(path);
             }
         }
 
-        return related.slice(0, 10); // Limit to 10 related files
+        return related.slice(0, 10); 
     }
 
     private getFrameworkForFile(filePath: string): string | undefined {
@@ -200,7 +185,6 @@ export class ProjectBrain {
         }
 
         for (const framework of this.state.frameworks) {
-            // Check if file is in framework entry points
             for (const entryPoint of framework.entryPoints) {
                 if (filePath.includes(entryPoint)) {
                     return framework.name;
@@ -219,7 +203,6 @@ export class ProjectBrain {
             return [];
         }
 
-        // Simple relevance scoring based on prompt keywords
         const keywords = prompt.toLowerCase().split(/\s+/);
         const fileScores = new Map<string, number>();
 
@@ -227,14 +210,12 @@ export class ProjectBrain {
             let score = 0;
             const fileName = filePath.toLowerCase();
 
-            // Score based on filename matches
             for (const keyword of keywords) {
                 if (fileName.includes(keyword)) {
                     score += 10;
                 }
             }
 
-            // Score based on function/class names
             for (const func of fileNode.functions) {
                 if (keywords.some(k => func.name.toLowerCase().includes(k))) {
                     score += 5;
@@ -252,7 +233,6 @@ export class ProjectBrain {
             }
         }
 
-        // Sort by score and return top files
         const sortedFiles = Array.from(fileScores.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, maxFiles)
@@ -286,11 +266,9 @@ export class ProjectBrain {
             return;
         }
 
-        // Clear cache
         const cacheKey = `project-brain-${this.workspaceRoot}`;
         analysisCache.delete(cacheKey);
 
-        // Re-analyze
         await this.analyzeProject();
     }
 

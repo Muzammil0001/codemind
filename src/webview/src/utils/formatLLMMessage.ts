@@ -1,8 +1,6 @@
-// Detect the programming language of a code snippet
 export function detectLanguage(snippet: string): string {
     const trimmed = snippet.trim();
 
-    // Check if JSON
     if (/^\{[\s\S]*\}$/.test(trimmed) || /^\[[\s\S]*\]$/.test(trimmed)) {
         try {
             JSON.parse(trimmed);
@@ -33,7 +31,6 @@ export function detectLanguage(snippet: string): string {
     return 'plaintext';
 }
 
-// Unwrap only the outermost code fence
 export function unwrapOuterCodeFence(text: string): string {
     if (!text || typeof text !== 'string') return '';
 
@@ -48,8 +45,6 @@ export function unwrapOuterCodeFence(text: string): string {
 
 export function formatLLMMessage(text: string): string {
     if (!text || typeof text !== 'string') return '';
-
-    // text = unwrapOuterCodeFence(text);
 
     const fenceMatches = text.match(/```/g);
     if (fenceMatches && fenceMatches.length % 2 === 1) {

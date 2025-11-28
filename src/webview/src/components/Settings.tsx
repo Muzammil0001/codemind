@@ -1,7 +1,4 @@
-/**
- * Settings Component
- * Configuration panel for CodeMind AI
- */
+
 
 import { ArrowLeft, Settings as SettingsIcon, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -44,7 +41,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
         }
     });
 
-    // State for API key visibility toggles
     const [showApiKeys, setShowApiKeys] = useState<Record<keyof typeof settings.apiKeys, boolean>>({
         groq: false,
         deepseek: false,
@@ -54,13 +50,11 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     });
 
     useEffect(() => {
-        // Request current settings from extension
         postMessage({ type: 'getSettings' });
 
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
             if (message.type === 'currentSettings') {
-                // Merge received settings with defaults
                 setSettings(prev => ({
                     ...prev,
                     ...message.data
@@ -73,7 +67,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     }, [postMessage]);
 
     const handleSave = () => {
-        // Save to VS Code configuration
         postMessage({
             type: 'updateSettings',
             settings: {
@@ -107,7 +100,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
 
     return (
         <div className="flex flex-col h-full bg-zinc-950 text-zinc-100">
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -126,9 +118,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 </button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-8 max-w-3xl mx-auto w-full">
-                {/* Model Configuration */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-zinc-300 border-b border-zinc-800 pb-2">Model Configuration</h3>
 
@@ -180,7 +170,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* API Keys */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-zinc-300 border-b border-zinc-800 pb-2">API Keys</h3>
                     <p className="text-xs text-zinc-500">Configure API keys for different providers. Changes require extension reload.</p>
@@ -217,7 +206,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* Performance */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-zinc-300 border-b border-zinc-800 pb-2">Performance</h3>
 
@@ -251,7 +239,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 </div>
             </div>
 
-            {/* Footer */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky bottom-0">
                 <button
                     onClick={onBack}

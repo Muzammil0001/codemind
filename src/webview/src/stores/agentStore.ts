@@ -16,7 +16,6 @@ interface AgentState {
     isProcessing: boolean;
     status: 'idle' | 'thinking' | 'planning' | 'running' | 'executing';
 
-    // Actions
     addTask: (task: Omit<AgentTask, 'status' | 'progress'>) => void;
     updateTaskStatus: (taskId: string, status: AgentTask['status'], progress?: number) => void;
     completeTask: (taskId: string, result: string) => void;

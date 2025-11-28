@@ -1,6 +1,4 @@
-/**
- * Documentation Agent - Generates comprehensive documentation
- */
+
 
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';

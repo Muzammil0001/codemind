@@ -1,24 +1,17 @@
-/**
- * Context Builder Utility
- * Builds contextual prompts from chat history for better AI responses
- */
+
 
 import type { Message } from '../stores/chatStore';
 
 export interface MessageContext {
-    /** Recent messages for context */
+    
     recentMessages: Message[];
 
-    /** Referenced message IDs */
     referencedIds: string[];
 
-    /** Generated code blocks */
     codeBlocks: CodeBlock[];
 
-    /** File references */
     fileReferences: string[];
 
-    /** Terminal commands executed */
     terminalCommands: string[];
 }
 
@@ -30,48 +23,35 @@ export interface CodeBlock {
 }
 
 export interface ContextualPrompt {
-    /** Enhanced prompt with context */
+    
     prompt: string;
 
-    /** Context summary */
     contextSummary: string;
 
-    /** Referenced message IDs */
     references: string[];
 }
 
-/**
- * Build contextual prompt from chat history
- */
 export function buildContextualPrompt(
     userQuery: string,
     chatHistory: Message[],
     projectScripts?: Record<string, string>,
     maxContextMessages: number = 5
 ): ContextualPrompt {
-    // Get recent messages
     const recentMessages = chatHistory.slice(-maxContextMessages);
 
-    // Extract context elements
     const context = extractContext(recentMessages);
 
-    // Check if this is a "continue" request
     if (isContinueRequest(userQuery)) {
         return buildContinuePrompt(recentMessages);
     }
 
-    // Check if this references previous code
     if (referencePreviousCode(userQuery)) {
         return buildCodeReferencePrompt(userQuery, context);
     }
 
-    // Build standard contextual prompt
     return buildStandardPrompt(userQuery, context, projectScripts);
 }
 
-/**
- * Extract context from messages
- */
 function extractContext(messages: Message[]): MessageContext {
     const codeBlocks: CodeBlock[] = [];
     const fileReferences: string[] = [];
@@ -79,7 +59,6 @@ function extractContext(messages: Message[]): MessageContext {
     const referencedIds: string[] = [];
 
     messages.forEach(msg => {
-        // Extract code blocks
         const codeMatches = msg.content.matchAll(/```(\w+)?\n([\s\S]+?)```/g);
         for (const match of codeMatches) {
             codeBlocks.push({
@@ -90,13 +69,11 @@ function extractContext(messages: Message[]): MessageContext {
             });
         }
 
-        // Extract file references
         const fileMatches = msg.content.matchAll(/@([\w\/\.\-]+)/g);
         for (const match of fileMatches) {
             fileReferences.push(match[1]);
         }
 
-        // Extract terminal commands
         const cmdMatches = msg.content.matchAll(/```(?:bash|sh|shell)\n([\s\S]+?)```/g);
         for (const match of cmdMatches) {
             terminalCommands.push(match[1].trim());
@@ -114,9 +91,6 @@ function extractContext(messages: Message[]): MessageContext {
     };
 }
 
-/**
- * Check if user is requesting to continue
- */
 function isContinueRequest(query: string): boolean {
     const continuePatterns = [
         /^continue$/i,
@@ -132,9 +106,6 @@ function isContinueRequest(query: string): boolean {
     return continuePatterns.some(pattern => pattern.test(query.trim()));
 }
 
-/**
- * Check if user is referencing previous code
- */
 function referencePreviousCode(query: string): boolean {
     const referencePatterns = [
         /(?:the|that|this)\s+(?:code|component|function|class)/i,
@@ -146,9 +117,6 @@ function referencePreviousCode(query: string): boolean {
     return referencePatterns.some(pattern => pattern.test(query));
 }
 
-/**
- * Build continue prompt
- */
 function buildContinuePrompt(messages: Message[]): ContextualPrompt {
     const lastAIMessage = [...messages].reverse().find(m => m.role === 'ai');
 
@@ -160,7 +128,6 @@ function buildContinuePrompt(messages: Message[]): ContextualPrompt {
         };
     }
 
-    // Extract what was being discussed
     const lastContent = lastAIMessage.content;
     const lastCodeBlock = lastContent.match(/```[\s\S]+```$/);
 
@@ -178,9 +145,6 @@ Please continue where you left off.`;
     };
 }
 
-/**
- * Build code reference prompt
- */
 function buildCodeReferencePrompt(userQuery: string, context: MessageContext): ContextualPrompt {
     const lastCodeBlock = context.codeBlocks[context.codeBlocks.length - 1];
 
@@ -204,16 +168,12 @@ Please provide your response based on this code.`;
     };
 }
 
-/**
- * Build standard contextual prompt
- */
 function buildStandardPrompt(
     userQuery: string,
     context: MessageContext,
     projectScripts?: Record<string, string>
 ): ContextualPrompt {
     if (context.recentMessages.length === 0) {
-        // If we have scripts, include them even without history
         if (projectScripts && Object.keys(projectScripts).length > 0) {
             const scriptsList = Object.keys(projectScripts).join(', ');
             return {
@@ -230,7 +190,6 @@ function buildStandardPrompt(
         };
     }
 
-    // Build context summary
     const contextParts: string[] = [];
 
     if (context.fileReferences.length > 0) {
@@ -249,7 +208,6 @@ function buildStandardPrompt(
         contextParts.push(`Available scripts: ${Object.keys(projectScripts).join(', ')}`);
     }
 
-    // Build conversation summary
     const conversationSummary = context.recentMessages
         .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content.slice(0, 100)}...`)
         .join('\n');
@@ -276,9 +234,6 @@ ${Object.entries(projectScripts).map(([name, cmd]) => `- ${name}: ${cmd}`).join(
     };
 }
 
-/**
- * Extract actionable items from AI response
- */
 export function extractActionableItems(aiResponse: string): {
     codeBlocks: CodeBlock[];
     fileOperations: { operation: string; file: string }[];
@@ -288,7 +243,6 @@ export function extractActionableItems(aiResponse: string): {
     const fileOperations: { operation: string; file: string }[] = [];
     const commands: string[] = [];
 
-    // Extract code blocks
     const codeMatches = aiResponse.matchAll(/```(\w+)?\n([\s\S]+?)```/g);
     for (const match of codeMatches) {
         codeBlocks.push({
@@ -299,7 +253,6 @@ export function extractActionableItems(aiResponse: string): {
         });
     }
 
-    // Extract file operations
     const createFileMatches = aiResponse.matchAll(/create\s+(?:file\s+)?(?:`)?([^\s`]+)(?:`)?/gi);
     for (const match of createFileMatches) {
         fileOperations.push({ operation: 'create', file: match[1] });
@@ -310,7 +263,6 @@ export function extractActionableItems(aiResponse: string): {
         fileOperations.push({ operation: 'modify', file: match[1] });
     }
 
-    // Extract commands
     const cmdMatches = aiResponse.matchAll(/```(?:bash|sh|shell)\n([\s\S]+?)```/g);
     for (const match of cmdMatches) {
         commands.push(match[1].trim());
@@ -319,9 +271,6 @@ export function extractActionableItems(aiResponse: string): {
     return { codeBlocks, fileOperations, commands };
 }
 
-/**
- * Generate context summary for display
- */
 export function generateContextSummary(context: MessageContext): string {
     const parts: string[] = [];
 

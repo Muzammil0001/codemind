@@ -1,7 +1,3 @@
-/**
- * Global TypeScript type definitions for CodeMind AI
- */
-
 import * as vscode from 'vscode';
 
 // ============================================================================

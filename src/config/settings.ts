@@ -1,6 +1,4 @@
-/**
- * Extension settings and configuration management
- */
+
 
 import * as vscode from 'vscode';
 import { ExtensionConfig } from '../types';

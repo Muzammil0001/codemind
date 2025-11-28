@@ -1,6 +1,4 @@
-/**
- * CodeMind AI - Main Extension Entry Point
- */
+
 
 import * as vscode from 'vscode';
 import { logger } from './utils/logger';
@@ -24,21 +22,17 @@ export async function activate(context: vscode.ExtensionContext) {
     logger.info('CodeMind AI extension activating...');
     const runningTerminals = new Map<string, vscode.Terminal>();
     try {
-        // Initialize core systems
         permissionEngine = new PermissionEngine(context);
 
-        // Connect permission engine to file operations and terminal
         fileOperationManager.setPermissionEngine(permissionEngine);
         terminalExecutor.setPermissionEngine(permissionEngine);
 
-        // Initialize backup manager and memory engine
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (workspaceRoot) {
             await backupManager.initialize(workspaceRoot);
             await memoryEngine.initialize(workspaceRoot);
         }
 
-        // Register webview provider
         const webviewProvider = new WebviewProvider(context.extensionUri);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(
@@ -47,7 +41,6 @@ export async function activate(context: vscode.ExtensionContext) {
             )
         );
 
-        // Register inline suggestion provider
         context.subscriptions.push(
             vscode.languages.registerInlineCompletionItemProvider(
                 { pattern: '**' },
@@ -55,13 +48,10 @@ export async function activate(context: vscode.ExtensionContext) {
             )
         );
 
-        // Register commands
         registerCommands(context);
 
-        // Initialize AI providers
         await initializeAI();
 
-        // Show welcome message
         showWelcomeMessage(context);
 
         logger.info('CodeMind AI extension activated successfully');
@@ -81,7 +71,6 @@ export function deactivate() {
 function registerCommands(context: vscode.ExtensionContext) {
     logger.info('Registering commands...');
 
-    // Main panel command
     try {
         context.subscriptions.push(
             vscode.commands.registerCommand('codemind.openPanel', async () => {
@@ -99,7 +88,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         logger.error('Failed to register codemind.openPanel', error as Error);
     }
 
-    // Generate code command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.generateCode', async () => {
             const prompt = await vscode.window.showInputBox({
@@ -119,9 +107,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     systemPrompt: SYSTEM_INSTRUCTION || 'You are an expert code assistant. Generate clean, well-documented and uncommented code.',
                     maxTokens: 2048
                 }, 'code-generation');
-                console.log("response====>>", response);
-                logger.info("response====>>", response);
-                // Insert code at cursor
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     editor.edit(editBuilder => {
@@ -139,7 +124,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Explain code command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.explainCode', async () => {
             const editor = vscode.window.activeTextEditor;
@@ -166,7 +150,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Refactor code command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.refactorCode', async () => {
             const editor = vscode.window.activeTextEditor;
@@ -193,7 +176,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     maxTokens: 2048
                 }, 'refactoring');
 
-                // Replace selection with refactored code
                 editor.edit(editBuilder => {
                     editBuilder.replace(editor.selection, response.content);
                 });
@@ -206,7 +188,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Generate tests command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.generateTests', async () => {
             const editor = vscode.window.activeTextEditor;
@@ -226,7 +207,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     maxTokens: 3000
                 }, 'testing');
 
-                // Create new test file
                 const testFileName = fileName.replace(/\.(ts|js|tsx|jsx)$/, '.test.$1');
                 const testUri = vscode.Uri.file(testFileName);
 
@@ -245,7 +225,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Generate documentation command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.generateDocs', async () => {
             const editor = vscode.window.activeTextEditor;
@@ -264,7 +243,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     maxTokens: 3000
                 }, 'documentation');
 
-                // Replace entire file with documented version
                 editor.edit(editBuilder => {
                     const fullRange = new vscode.Range(
                         editor.document.positionAt(0),
@@ -281,14 +259,12 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Clear permissions command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.clearPermissions', async () => {
             await permissionEngine.clearPermissions();
         })
     );
 
-    // Toggle turbo mode command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.toggleTurboMode', async () => {
             const enabled = await configManager.toggleTurboMode();
@@ -298,28 +274,24 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
-    // Analyze codebase command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.analyzeCodebase', async () => {
             vscode.window.showInformationMessage('Codebase analysis - Coming soon!');
         })
     );
 
-    // Image to code command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.imageToCode', async () => {
             await imageToCodeAgent.convertScreenshot();
         })
     );
 
-    // Generate commit message command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.generateCommitMessage', async () => {
             await commitMessageGenerator.showCommitMessageDialog();
         })
     );
 
-    // Toggle inline suggestions command
     context.subscriptions.push(
         vscode.commands.registerCommand('codemind.toggleInlineSuggestions', async () => {
             const enabled = inlineSuggestionProvider.toggle();

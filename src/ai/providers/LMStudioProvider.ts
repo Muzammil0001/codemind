@@ -1,6 +1,4 @@
-/**
- * LM Studio Local LLM Provider
- */
+
 
 import axios from 'axios';
 import { BaseProvider } from './BaseProvider';
@@ -103,7 +101,7 @@ export class LMStudioProvider extends BaseProvider {
                                     onChunk(content);
                                 }
                             } catch (e) {
-                                // Ignore parse errors
+                                logger.error('LM Studio streaming failed', e as Error);
                             }
                         }
                     }

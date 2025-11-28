@@ -1,6 +1,4 @@
-/**
- * Coder Agent - Writes and edits code
- */
+
 
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
@@ -28,7 +26,6 @@ export class CoderAgent extends BaseAgent {
             model: task.context.modelId
         }, 'code-generation');
 
-        // Detect and execute file operations
         const operations = this.extractFileOperations(response.content);
         let operationsExecuted = 0;
 
@@ -71,7 +68,6 @@ export class CoderAgent extends BaseAgent {
         const brainState = projectBrain.getState();
         const relevantFiles: string[] = [];
 
-        // Get relevant files from Project Brain
         if (brainState) {
             const relevant = await projectBrain.getRelevantContext(task.description, 3);
 
@@ -89,7 +85,7 @@ export class CoderAgent extends BaseAgent {
         return {
             relevantFiles,
             frameworks: brainState?.frameworks.map(f => f.name) || [],
-            style: null // TODO: Add style from StyleAnalyzer
+            style: null 
         };
     }
 
@@ -104,7 +100,6 @@ export class CoderAgent extends BaseAgent {
     private extractFileOperations(response: string): any[] {
         const operations: any[] = [];
 
-        // Match JSON code blocks with file operations
         const jsonBlockRegex = /```json\s*\n([\s\S]*?)\n```/g;
         let match;
 
@@ -113,7 +108,6 @@ export class CoderAgent extends BaseAgent {
                 const jsonContent = match[1];
                 const parsed = JSON.parse(jsonContent);
 
-                // Check if it's a file operation
                 if (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move'].includes(parsed.operation)) {
                     operations.push({
                         type: parsed.operation,
@@ -123,7 +117,6 @@ export class CoderAgent extends BaseAgent {
                     });
                 }
             } catch (error) {
-                // Not valid JSON or not a file operation, skip
                 continue;
             }
         }
@@ -132,14 +125,12 @@ export class CoderAgent extends BaseAgent {
     }
 
     private extractCode(response: string): string {
-        // Try to extract code from markdown code blocks
         const codeBlockMatch = response.match(/```[\w]*\n([\s\S]*?)\n```/);
 
         if (codeBlockMatch) {
             return codeBlockMatch[1];
         }
 
-        // If no code block, return the entire response
         return response;
     }
 }

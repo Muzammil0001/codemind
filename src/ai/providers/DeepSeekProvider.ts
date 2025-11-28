@@ -1,6 +1,4 @@
-/**
- * DeepSeek AI Provider (Code-specialized with free tier)
- */
+
 
 import axios from 'axios';
 import { BaseProvider } from './BaseProvider';
@@ -119,7 +117,7 @@ export class DeepSeekProvider extends BaseProvider {
                                     onChunk(content);
                                 }
                             } catch (e) {
-                                // Ignore parse errors
+                                logger.error('Error parsing DeepSeek response', e);
                             }
                         }
                     }

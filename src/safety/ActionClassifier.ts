@@ -1,6 +1,4 @@
-/**
- * Action Classifier - Analyzes operations to determine risk level
- */
+
 
 import { ActionCategory, RiskLevel, ActionRequest } from '../types';
 import * as vscode from 'vscode';
@@ -103,7 +101,6 @@ export class ActionClassifier {
         const fileName = path.basename(filePath);
         const fileExt = path.extname(filePath);
 
-        // Critical operations
         if (operation === 'delete') {
             if (this.isCriticalFile(fileName)) {
                 return 'critical';
@@ -114,17 +111,14 @@ export class ActionClassifier {
             return 'moderate';
         }
 
-        // Modifying critical files
         if (this.isCriticalFile(fileName)) {
             return 'high';
         }
 
-        // Auth or framework files
         if (this.isAuthFile(filePath) || this.isFrameworkFile(filePath)) {
             return 'high';
         }
 
-        // Large files
         if (content && content.length > 10000) {
             return 'moderate';
         }
@@ -135,27 +129,22 @@ export class ActionClassifier {
     private assessCommandRisk(command: string): RiskLevel {
         const lowerCommand = command.toLowerCase();
 
-        // Destructive commands
         if (this.isDestructiveCommand(lowerCommand)) {
             return 'critical';
         }
 
-        // System modifications
         if (lowerCommand.includes('sudo') || lowerCommand.includes('chmod')) {
             return 'high';
         }
 
-        // Package installations
         if (this.isPackageInstall(lowerCommand)) {
             return 'moderate';
         }
 
-        // Database operations
         if (this.isDatabaseOperation(lowerCommand)) {
             return 'high';
         }
 
-        // Network operations
         if (lowerCommand.includes('curl') || lowerCommand.includes('wget')) {
             return 'moderate';
         }
@@ -212,7 +201,6 @@ export class ActionClassifier {
     }
 
     private isFileOperationReversible(operation: string): boolean {
-        // Deletes are not easily reversible
         return operation !== 'delete';
     }
 

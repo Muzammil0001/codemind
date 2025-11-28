@@ -1,6 +1,4 @@
-/**
- * Diff Generator - Creates and applies code diffs
- */
+
 
 import { FileDiff, DiffHunk, DiffLine } from '../types';
 import * as Diff from 'diff';
@@ -27,7 +25,6 @@ export class DiffGenerator {
         let lineNumber = 0;
 
         for (const line of lines) {
-            // Parse hunk header
             if (line.startsWith('@@')) {
                 const match = line.match(/@@ -(\d+),(\d+) \+(\d+),(\d+) @@/);
                 if (match) {

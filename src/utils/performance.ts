@@ -1,6 +1,4 @@
-/**
- * Performance monitoring and optimization utilities
- */
+
 
 export interface PerformanceMetric {
     name: string;
@@ -42,7 +40,6 @@ class PerformanceMonitor {
         this.activeTimers.delete(name);
         this.activeTimers.delete(`${name}_metadata`);
 
-        // Trim old metrics
         if (this.metrics.length > this.maxMetrics) {
             this.metrics = this.metrics.slice(-this.maxMetrics);
         }
@@ -125,9 +122,6 @@ class PerformanceMonitor {
 
 export const performanceMonitor = new PerformanceMonitor();
 
-/**
- * Decorator for measuring function performance
- */
 export function measurePerformance(metricName?: string) {
     return function (
         target: any,
@@ -145,9 +139,6 @@ export function measurePerformance(metricName?: string) {
     };
 }
 
-/**
- * Debounce function for performance optimization
- */
 export function debounce<T extends (...args: any[]) => any>(
     fn: T,
     delay: number
@@ -160,9 +151,6 @@ export function debounce<T extends (...args: any[]) => any>(
     };
 }
 
-/**
- * Throttle function for performance optimization
- */
 export function throttle<T extends (...args: any[]) => any>(
     fn: T,
     limit: number

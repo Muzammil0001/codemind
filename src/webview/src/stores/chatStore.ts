@@ -16,8 +16,8 @@ export interface ChatSession {
     id: string;
     title: string;
     messages: Message[];
-    timestamp: number; // Changed from createdAt for compatibility
-    preview: string;   // Added for compatibility
+    timestamp: number; 
+    preview: string;   
     updatedAt: number;
 }
 
@@ -28,7 +28,6 @@ interface ChatState {
     isLoading: boolean;
     error: string | null;
 
-    // Actions
     addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string;
     updateMessageCommandId: (messageId: string, commandId: string) => void;
     setMessages: (messages: Message[]) => void;
@@ -59,7 +58,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set((state) => {
             const updatedMessages = [...state.messages, newMessage];
 
-            // Update current session if exists
             let updatedSessions = state.sessions;
             if (state.currentSessionId) {
                 updatedSessions = state.sessions.map(s =>
@@ -91,7 +89,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     : msg
             );
 
-            // Update current session if exists
             let updatedSessions = state.sessions;
             if (state.currentSessionId) {
                 updatedSessions = state.sessions.map(s =>

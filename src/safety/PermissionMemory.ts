@@ -1,6 +1,4 @@
-/**
- * Permission Memory - Stores user permission preferences
- */
+
 
 import * as vscode from 'vscode';
 import { ActionCategory, PermissionLevel, PermissionMemoryEntry } from '../types';
@@ -22,7 +20,6 @@ export class PermissionMemory {
             return undefined;
         }
 
-        // Update last used
         entry.lastUsed = Date.now();
         entry.useCount++;
         await this.saveMemory(memory);

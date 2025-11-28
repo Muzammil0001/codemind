@@ -1,7 +1,4 @@
-/**
- * Terminal Command Executor - Safe terminal command execution with approval
- * Enhanced with TerminalManager integration for background execution
- */
+
 
 import * as vscode from 'vscode';
 import { PermissionEngine } from '../safety/PermissionEngine';
@@ -26,9 +23,6 @@ export class TerminalExecutor {
         this.permissionEngine = engine;
     }
 
-    /**
-     * Execute command with background support (recommended)
-     */
     async executeCommandWithBackground(
         command: string,
         cwd?: string,
@@ -36,13 +30,11 @@ export class TerminalExecutor {
     ): Promise<CommandResult> {
         logger.info(`Executing command with background: ${command}`);
 
-        // Classify the command
         const action = actionClassifier.classifyTerminalCommand(
             command,
             cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || ''
         );
 
-        // Request permission if needed
         if (this.permissionEngine) {
             const decision = await this.permissionEngine.requestPermission(action);
 
@@ -52,7 +44,6 @@ export class TerminalExecutor {
             }
         }
 
-        // Execute using TerminalManager
         const startTime = Date.now();
         const result = await terminalManager.executeCommand(command, {
             cwd: cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
@@ -78,22 +69,17 @@ export class TerminalExecutor {
         }
     }
 
-    /**
-     * Legacy execute command (backward compatible)
-     */
     async executeCommand(
         command: string,
         cwd?: string
     ): Promise<CommandResult> {
         logger.info(`Executing command: ${command}`);
 
-        // Classify the command
         const action = actionClassifier.classifyTerminalCommand(
             command,
             cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || ''
         );
 
-        // Request permission if needed
         if (this.permissionEngine) {
             const decision = await this.permissionEngine.requestPermission(action);
 
@@ -103,7 +89,6 @@ export class TerminalExecutor {
             }
         }
 
-        // Execute the command
         const startTime = Date.now();
 
         try {
@@ -133,7 +118,6 @@ export class TerminalExecutor {
 
     private async runCommand(command: string, cwd?: string): Promise<string> {
         return new Promise((resolve, reject) => {
-            // Get or create terminal
             if (!this.terminal || this.terminal.exitStatus) {
                 this.terminal = vscode.window.createTerminal({
                     name: 'CodeMind AI',
@@ -141,15 +125,10 @@ export class TerminalExecutor {
                 });
             }
 
-            // Show terminal
             this.terminal.show();
 
-            // Send command
             this.terminal.sendText(command);
 
-            // Note: We can't easily capture output from VS Code terminal
-            // This is a limitation of the VS Code API
-            // For now, we'll just resolve after sending the command
             setTimeout(() => {
                 resolve('Command sent to terminal. Check terminal output.');
             }, 1000);
@@ -160,28 +139,18 @@ export class TerminalExecutor {
         command: string,
         cwd?: string
     ): Promise<CommandResult> {
-        // Use new background execution with output capture
         logger.info('Using TerminalManager for executeWithOutput');
         return this.executeCommandWithBackground(command, cwd, TerminalLocation.CHAT);
     }
 
-    /**
-     * Stop a running command
-     */
     stopCommand(commandId: string): boolean {
         return terminalManager.stopCommand(commandId);
     }
 
-    /**
-     * Get command status
-     */
     getCommandStatus(commandId: string) {
         return terminalManager.getCommand(commandId);
     }
 
-    /**
-     * Get all running commands
-     */
     getRunningCommands() {
         return terminalManager.getRunningCommands();
     }
@@ -192,7 +161,6 @@ export class TerminalExecutor {
             this.terminal = null;
         }
 
-        // Dispose terminal manager
         terminalManager.dispose();
     }
 

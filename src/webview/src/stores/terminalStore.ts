@@ -32,7 +32,6 @@ export const useTerminalStore = create<TerminalState>((set) => ({
 
     addCommand: (command) =>
         set((state) => {
-            console.log('📝 Adding command to store:', command.id);
             return {
                 commands: {
                     ...state.commands,
@@ -49,7 +48,6 @@ export const useTerminalStore = create<TerminalState>((set) => ({
                 return state;
             }
 
-            console.log('🔄 Updating command:', id, updates);
             return {
                 commands: {
                     ...state.commands,
@@ -66,11 +64,8 @@ export const useTerminalStore = create<TerminalState>((set) => ({
             let existing = state.commands[id];
             let currentCommands = state.commands;
 
-            // If command doesn't exist yet, create a placeholder
-            // This handles race condition where output arrives before command registration
             if (!existing) {
                 console.warn(`⚠️ Output arrived before command registration for: ${id}`);
-                console.log('📝 Creating placeholder command for:', id);
 
                 existing = {
                     id,
@@ -82,26 +77,15 @@ export const useTerminalStore = create<TerminalState>((set) => ({
                     location: 'chat'
                 };
 
-                // Add the placeholder to the commands object for this specific set call
                 currentCommands = {
                     ...state.commands,
                     [id]: existing
                 };
             }
-
-            console.log('📥 Adding output to command:', id, output.content.substring(0, 50));
-            console.log('📊 Before update - output length:', existing.output.length);
-
-            // Create new command with updated output
             const updatedCommand = {
                 ...existing,
                 output: [...existing.output, output],
             };
-
-            console.log('📊 After update - output length:', updatedCommand.output.length);
-            console.log('🔍 Old command reference:', existing);
-            console.log('🔍 New command reference:', updatedCommand);
-            console.log('🔍 References equal?', existing === updatedCommand);
 
             const newState = {
                 commands: {
@@ -109,10 +93,6 @@ export const useTerminalStore = create<TerminalState>((set) => ({
                     [id]: updatedCommand,
                 },
             };
-
-            console.log('🔍 Old commands ref:', state.commands);
-            console.log('🔍 New commands ref:', newState.commands);
-            console.log('🔍 Commands refs equal?', state.commands === newState.commands);
 
             return newState;
         }),
@@ -131,7 +111,6 @@ export const useTerminalStore = create<TerminalState>((set) => ({
                 }
             });
 
-            console.log('🧹 Cleared completed commands');
             return { commands: newCommands };
         }),
 }));

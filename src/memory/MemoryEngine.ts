@@ -1,6 +1,4 @@
-/**
- * Memory Engine - Persistent project memory and context
- */
+
 
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -43,7 +41,6 @@ export class MemoryEngine {
 
         this.memories.set(id, memory);
 
-        // Enforce max memories limit
         if (this.memories.size > this.maxMemories) {
             await this.pruneOldMemories();
         }
@@ -74,7 +71,6 @@ export class MemoryEngine {
             }
         }
 
-        // Sort by timestamp (most recent first)
         return results.sort((a, b) => b.timestamp - a.timestamp);
     }
 
@@ -149,7 +145,6 @@ export class MemoryEngine {
         const all = Array.from(this.memories.entries());
         const sorted = all.sort((a, b) => b[1].timestamp - a[1].timestamp);
 
-        // Keep only the most recent maxMemories
         const toKeep = sorted.slice(0, this.maxMemories);
 
         this.memories = new Map(toKeep);
@@ -164,7 +159,6 @@ export class MemoryEngine {
 
             this.memories = new Map(Object.entries(data));
         } catch (error) {
-            // File doesn't exist or is invalid, start fresh
             this.memories = new Map();
         }
     }

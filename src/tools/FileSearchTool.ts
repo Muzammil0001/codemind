@@ -1,8 +1,3 @@
-/**
- * File Search Tool
- * Advanced file and symbol search with fuzzy matching and semantic similarity
- */
-
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { distance } from 'fuzzball';
@@ -125,9 +120,7 @@ export class FileSearchTool implements BaseTool {
             .slice(0, maxResults);
     }
 
-    /**
-     * Search for symbols (functions, classes, variables)
-     */
+
     private async searchSymbols(query: string, fuzzy: boolean, maxResults: number): Promise<SearchResult[]> {
         const results: SearchResult[] = [];
 
@@ -164,7 +157,6 @@ export class FileSearchTool implements BaseTool {
                         });
                     }
 
-                    // Search in children (nested symbols)
                     if (symbol.children) {
                         results.push(...this.searchSymbolChildren(symbol.children, query, fuzzy, file));
                     }
@@ -179,9 +171,7 @@ export class FileSearchTool implements BaseTool {
             .slice(0, maxResults);
     }
 
-    /**
-     * Search symbol children recursively
-     */
+
     private searchSymbolChildren(
         symbols: vscode.DocumentSymbol[],
         query: string,
@@ -214,13 +204,9 @@ export class FileSearchTool implements BaseTool {
         return results;
     }
 
-    /**
-     * Search file content
-     */
     private async searchContent(query: string, maxResults: number): Promise<SearchResult[]> {
         const results: SearchResult[] = [];
 
-        // Find all text files
         const files = await vscode.workspace.findFiles(
             '**/*.{ts,tsx,js,jsx,py,go,rs,java,md,json,txt}',
             '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**}',
@@ -248,26 +234,20 @@ export class FileSearchTool implements BaseTool {
                     }
                 }
             } catch (error) {
-                // Ignore read errors
+                logger.error(`Failed to search content in ${file.fsPath}`, error as Error);
             }
         }
 
         return results;
     }
 
-    /**
-     * Get semantic similarity using embeddings
-     */
     private async getSemanticSimilarity(query: string, text: string): Promise<number> {
         try {
-            // Check cache
             const cacheKey = `${query}::${text}`;
             if (this.embeddingCache.has(cacheKey)) {
                 return this.embeddingCache.get(cacheKey)!;
             }
 
-            // Generate embeddings (simplified - in production use proper embedding model)
-            // For now, use simple keyword matching as fallback
             const queryWords = query.toLowerCase().split(/\s+/);
             const textWords = text.toLowerCase().split(/[\s\/\\_\\.]+/);
 
@@ -281,9 +261,6 @@ export class FileSearchTool implements BaseTool {
         }
     }
 
-    /**
-     * Map VS Code symbol kind to our type
-     */
     private mapSymbolKind(kind: vscode.SymbolKind): SearchResult['type'] {
         switch (kind) {
             case vscode.SymbolKind.Function:
@@ -301,9 +278,6 @@ export class FileSearchTool implements BaseTool {
         }
     }
 
-    /**
-     * Index workspace files for faster search
-     */
     async indexWorkspace(): Promise<void> {
         const files = await vscode.workspace.findFiles(
             '**/*',

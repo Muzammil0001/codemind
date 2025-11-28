@@ -1,6 +1,4 @@
-/**
- * Commit Message Generator - Generates meaningful commit messages
- */
+
 
 import * as vscode from 'vscode';
 import { modelRouter } from '../ai/ModelRouter';
@@ -9,7 +7,6 @@ import { logger } from '../utils/logger';
 export class CommitMessageGenerator {
     async generateCommitMessage(): Promise<string | undefined> {
         try {
-            // Get git diff
             const diff = await this.getGitDiff();
 
             if (!diff) {
@@ -17,7 +14,6 @@ export class CommitMessageGenerator {
                 return undefined;
             }
 
-            // Generate commit message
             const prompt = this.buildPrompt(diff);
 
             const response = await modelRouter.generateCompletion({
@@ -50,7 +46,6 @@ export class CommitMessageGenerator {
             return undefined;
         }
 
-        // Get staged changes
         const diff = await repo.diff(true);
         return diff;
     }
@@ -70,10 +65,8 @@ export class CommitMessageGenerator {
     }
 
     private extractCommitMessage(response: string): string {
-        // Remove code blocks if present
         let message = response.replace(/```[\w]*\n?/g, '').trim();
 
-        // Remove any "Commit message:" prefix
         message = message.replace(/^commit message:\s*/i, '');
 
         return message;
@@ -94,7 +87,6 @@ export class CommitMessageGenerator {
                 await vscode.env.clipboard.writeText(message);
                 vscode.window.showInformationMessage('Commit message copied to clipboard');
             } else if (action === 'Use in Git') {
-                // Open source control view with message
                 vscode.commands.executeCommand('workbench.view.scm');
                 vscode.window.showInformationMessage('Paste the commit message in the Source Control view');
             }

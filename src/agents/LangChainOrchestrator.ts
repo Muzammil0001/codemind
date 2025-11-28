@@ -1,8 +1,4 @@
-/**
- * LangChain Orchestrator
- * Modern agent orchestration using LangChain v1 createAgent API
- * Supports multi-step planning and tool execution
- */
+
 
 import { ChatOpenAI } from '@langchain/openai';
 import { createAgent, tool } from 'langchain';
@@ -46,7 +42,6 @@ export class LangChainOrchestrator extends BaseAgent {
     private async initialize() {
         if (this.agent) return;
 
-        // Wrap each tool as LangChain v1 tool
         const fileSearch = tool(
             async (args: { query: string; type?: 'file' | 'symbol' | 'content'; fuzzy?: boolean; semantic?: boolean }) => {
                 return await this.fileSearchTool.execute(args as any);
@@ -114,8 +109,6 @@ export class LangChainOrchestrator extends BaseAgent {
             temperature: 0,
             openAIApiKey: process.env.OPENAI_API_KEY || '',
         });
-        console.log("LangchainOrchestrator====>>llm config", llm);
-        logger.info("LangchainOrchestrator====>>llm config", llm);
         this.agent = createAgent({
             model: llm,
             tools: [fileSearch, filePatch, astEdit, terminal],

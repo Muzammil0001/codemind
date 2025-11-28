@@ -1,6 +1,4 @@
-/**
- * Webview Provider - Manages the React UI panel
- */
+
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -22,7 +20,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
   private runningTerminals: Map<string, vscode.Terminal> = new Map();
 
   constructor(private readonly _extensionUri: vscode.Uri) {
-    // Set up terminal manager callbacks
     this.initializeTerminalCallbacks();
   }
 
@@ -46,11 +43,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
     logger.info('WebviewProvider: HTML content set');
 
-    // Set up message listener
     this._setWebviewMessageListener(webviewView.webview);
     logger.info('WebviewProvider: Message listener set up');
 
-    // Send initial data
     this.sendStatus();
     this.sendActiveTasks();
     logger.info('WebviewProvider: Initial data sent');
@@ -178,7 +173,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const directories = new Set<string>();
 
     try {
-      // Find all files in the workspace
       const files = await vscode.workspace.findFiles(
         '**/*',
         '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**,**/build/**,**/.vscode-test/**}',
@@ -188,10 +182,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       for (const file of files) {
         const relativePath = path.relative(workspaceRoot, file.fsPath);
 
-        // Add the file
         items.push({ path: relativePath, type: 'file' });
 
-        // Extract and add all parent directories
         const parts = relativePath.split(path.sep);
         for (let i = 1; i < parts.length; i++) {
           const dirPath = parts.slice(0, i).join(path.sep);
@@ -300,7 +292,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       try {
         const content = fs.readFileSync(filePath, 'utf8');
         const history = JSON.parse(content);
-        // Return only metadata (preview) to save bandwidth
         sessions = history.sessions.map((s: any) => ({
           id: s.id,
           title: s.title,
@@ -452,15 +443,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         }
       }
 
-      // Create proper agent task
       const task: any = {
         id: `query-${Date.now()}`,
         type: agentType,
         description: cleanQuery,
         context: {
-          files: files.map(f => f.path), // Keep paths for reference
+          files: files.map(f => f.path),
           userPrompt: this.buildPromptWithFiles(cleanQuery, files),
-          modelId: modelId // Pass selected model ID
+          modelId: modelId
         },
         priority: 1,
         status: 'pending',
@@ -589,14 +579,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview) {
     logger.info('WebviewProvider: Generating HTML for webview');
-    // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.css'));
 
     logger.info(`WebviewProvider: Script URI: ${scriptUri.toString()}`);
     logger.info(`WebviewProvider: Style URI: ${styleUri.toString()}`);
 
-    // Use a nonce to only allow specific scripts to be run
     const nonce = getNonce();
     logger.info(`WebviewProvider: Generated nonce for CSP`);
 
@@ -673,9 +661,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  /**
-   * Handle execute terminal command
-   */
   private async handleExecuteTerminalCommand(
     command: string,
     cwd?: string,
@@ -715,9 +700,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle stop terminal command
-   */
   private async handleStopTerminalCommand(commandId: string): Promise<void> {
     logger.info(`Stopping terminal command: ${commandId}`);
 
@@ -732,9 +714,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle get running commands
-   */
   private async handleGetRunningCommands(): Promise<void> {
     const commands = terminalManager.getRunningCommands();
 
@@ -746,9 +725,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle read file request
-   */
   private async handleReadFile(filePath: string): Promise<void> {
     if (!this._view) return;
 
@@ -789,9 +765,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle AI command analysis request
-   */
   private async handleAnalyzeCommand(requestData: any, messageId: string): Promise<void> {
     if (!this._view) return;
 
@@ -818,7 +791,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         maxTokens: 500
       });
 
-      // Parse AI response
       let analysisResult: any = { isCommand: false };
       try {
         const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
@@ -829,7 +801,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         logger.error('Failed to parse AI command analysis response', parseError as Error);
       }
 
-      // Send response back to webview
       if (this._view) {
         this._view.webview.postMessage({
           type: 'commandAnalysisResponse',
@@ -881,23 +852,18 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  /**
-   * Handle update settings request
-   */
   private async handleUpdateSettings(settings: any): Promise<void> {
     if (!this._view) return;
 
     const config = vscode.workspace.getConfiguration('codemind');
 
     try {
-      // Update all settings
       await config.update('primaryModel', settings.primaryModel, vscode.ConfigurationTarget.Global);
       await config.update('turboMode', settings.turboMode, vscode.ConfigurationTarget.Global);
       await config.update('enableAutoFallback', settings.enableAutoFallback, vscode.ConfigurationTarget.Global);
       await config.update('cacheEmbeddings', settings.cacheEmbeddings, vscode.ConfigurationTarget.Global);
       await config.update('enableLocalModels', settings.enableLocalModels, vscode.ConfigurationTarget.Global);
 
-      // Update API keys
       if (settings.apiKeys) {
         await config.update('geminiApiKey', settings.apiKeys.gemini || '', vscode.ConfigurationTarget.Global);
         await config.update('openaiApiKey', settings.apiKeys.openai || '', vscode.ConfigurationTarget.Global);
@@ -908,7 +874,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       vscode.window.showInformationMessage('CodeMind settings saved successfully!');
 
-      // Send updated settings back
       await this.handleGetSettings();
     } catch (error) {
       logger.error('Failed to save settings', error as Error);
@@ -916,17 +881,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle terminal relocation from chat to main panel
-   */
   private async handleTerminalRelocate(commandId: string): Promise<void> {
     logger.info(`Relocating terminal for command: ${commandId}`);
 
     try {
-      // Check if terminal already exists
       const existingTerminal = this.runningTerminals.get(commandId);
       if (existingTerminal && !existingTerminal.exitStatus) {
-        // Terminal already exists - just focus it
         existingTerminal.show(true);
         logger.info(`Focused existing terminal for command: ${commandId}`);
         return;
@@ -940,23 +900,18 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // Get the running process
       const process = terminalManager.getProcess(commandId);
 
       if (process && !process.killed) {
-        // Create a new terminal and attach the existing process output
         const terminal = vscode.window.createTerminal({
           name: `CodeMind: ${command.command.substring(0, 30)}...`,
           cwd: command.cwd
         });
 
-        // Show the terminal
         terminal.show(true);
 
-        // Store reference
         this.runningTerminals.set(commandId, terminal);
 
-        // Send a message to show the command being run
         terminal.sendText(`# Relocated from chat terminal`);
         terminal.sendText(`# Command: ${command.command}`);
         terminal.sendText(`# Working directory: ${command.cwd}`);
@@ -965,7 +920,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
         logger.info(`Created new terminal for relocated command: ${commandId}`);
 
-        // Clean up when terminal closes
         vscode.window.onDidCloseTerminal((closedTerminal) => {
           if (closedTerminal === terminal) {
             this.runningTerminals.delete(commandId);
@@ -973,7 +927,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           }
         });
       } else {
-        // Process not running or already completed - create new terminal and re-run
         const terminal = vscode.window.createTerminal({
           name: `CodeMind: ${command.command.substring(0, 30)}...`,
           cwd: command.cwd
@@ -992,7 +945,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         });
       }
 
-      // Notify webview that relocation was successful
       if (this._view) {
         this._view.webview.postMessage({
           type: 'terminalRelocated',

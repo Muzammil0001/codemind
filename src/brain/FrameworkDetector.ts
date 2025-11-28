@@ -1,6 +1,4 @@
-/**
- * Framework Detector - Identifies and understands project frameworks
- */
+
 
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -11,7 +9,6 @@ export class FrameworkDetector {
     async detectFrameworks(workspaceRoot: string): Promise<DetectedFramework[]> {
         const frameworks: DetectedFramework[] = [];
 
-        // Check for various frameworks
         const detectors = [
             this.detectNextJS.bind(this),
             this.detectReact.bind(this),
@@ -44,7 +41,6 @@ export class FrameworkDetector {
             try {
                 await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
 
-                // Check for app or pages directory
                 const hasAppDir = await this.fileExists(path.join(root, 'app'));
                 const hasPagesDir = await this.fileExists(path.join(root, 'pages'));
 
@@ -79,7 +75,6 @@ export class FrameworkDetector {
                 };
             }
         } catch {
-            // No package.json or React not found
         }
 
         return null;
@@ -146,7 +141,7 @@ export class FrameworkDetector {
                 };
             }
         } catch {
-            // No package.json or Express not found
+            logger.error('Failed to detect Express');
         }
 
         return null;
@@ -188,7 +183,6 @@ export class FrameworkDetector {
                 };
             }
         } catch {
-            // No manage.py
         }
 
         return null;
@@ -208,7 +202,6 @@ export class FrameworkDetector {
                 };
             }
         } catch {
-            // No requirements.txt
         }
 
         return null;
@@ -227,7 +220,6 @@ export class FrameworkDetector {
                 entryPoints: []
             };
         } catch {
-            // No Prisma schema
         }
 
         return null;

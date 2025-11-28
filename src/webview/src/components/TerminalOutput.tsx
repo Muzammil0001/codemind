@@ -18,19 +18,14 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
         (state) => state.commands[commandId]
     );
 
-    console.log("========>>command", command, commandId);
-
-    // Auto-scroll on new output lines
     useLayoutEffect(() => {
         if (outputRef.current && command && !isCollapsed) {
             outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
     }, [command?.output.length, isCollapsed]);
 
-    // Auto-collapse when command completes
     useLayoutEffect(() => {
         if (command && (command.status === 'completed' || command.status === 'failed' || command.status === 'stopped')) {
-            // Auto-collapse after 2 seconds of completion
             const timer = setTimeout(() => {
                 setIsCollapsed(true);
             }, 2000);
@@ -38,7 +33,6 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
         }
     }, [command?.status]);
 
-    // Early return AFTER all hooks
     if (!command) {
         return (
             <div className="text-zinc-500 italic p-4">Command not found: {commandId}</div>
@@ -95,7 +89,6 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
 
     return (
         <div className="terminal-output my-3 rounded-lg border border-zinc-700/50 bg-[#1e1e1e] overflow-hidden shadow-lg">
-            {/* Header - Always visible, clickable to expand/collapse */}
             <div
                 className="flex items-center justify-between px-4 py-2.5 bg-[#2d2d2d] border-b border-zinc-700/50 cursor-pointer hover:bg-[#333333] transition-colors"
                 onClick={() => setIsCollapsed(!isCollapsed)}
@@ -157,7 +150,6 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
                 </div>
             </div>
 
-            {/* Terminal Output - Collapsible */}
             {!isCollapsed && (
                 <div
                     ref={outputRef}
@@ -185,9 +177,7 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     );
 };
 
-// Export memoized version that re-renders when commandId changes
 export const TerminalOutput = memo(TerminalOutputComponent, (prevProps, nextProps) => {
-    // Return true if props are equal (skip re-render), false if different (re-render)
     return prevProps.commandId === nextProps.commandId &&
         prevProps.onStop === nextProps.onStop &&
         prevProps.onRelocate === nextProps.onRelocate;

@@ -1,6 +1,4 @@
-/**
- * Backup Manager - Manages file backups and rollback
- */
+
 
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -42,13 +40,11 @@ export class BackupManager {
                 reason
             };
 
-            // Store in memory
             if (!this.backups.has(filePath)) {
                 this.backups.set(filePath, []);
             }
             this.backups.get(filePath)!.push(backup);
 
-            // Save to disk
             const backupFileName = `${path.basename(filePath)}.${backup.id}.backup`;
             const backupPath = path.join(this.backupDir, backupFileName);
 
@@ -106,7 +102,6 @@ export class BackupManager {
             if (index !== -1) {
                 backups.splice(index, 1);
 
-                // Delete from disk
                 const backupFileName = `${path.basename(filePath)}.${backupId}.backup`;
                 const backupPath = path.join(this.backupDir, backupFileName);
 

@@ -1,6 +1,4 @@
-/**
- * Permission Engine - Core safety system for user approval
- */
+
 
 import * as vscode from 'vscode';
 import { ActionRequest, PermissionLevel, PermissionDecision, RiskLevel } from '../types';
@@ -17,7 +15,6 @@ export class PermissionEngine {
     }
 
     async requestPermission(action: ActionRequest): Promise<PermissionDecision> {
-        // Check if action is safe enough to auto-approve
         if (this.canAutoApprove(action)) {
             logger.info(`Auto-approved safe action: ${action.description}`);
             return {
@@ -27,7 +24,6 @@ export class PermissionEngine {
             };
         }
 
-        // Check permission memory
         const remembered = await this.permissionMemory.getPermission(action.category);
 
         if (remembered === 'always-allow') {
@@ -49,7 +45,6 @@ export class PermissionEngine {
             };
         }
 
-        // Request user approval
         return await this.showApprovalDialog(action);
     }
 
@@ -81,7 +76,6 @@ export class PermissionEngine {
             };
         }
 
-        // Save to memory if always-allow or deny
         if (selected.value === 'always-allow' || selected.value === 'deny') {
             await this.permissionMemory.setPermission(action.category, selected.value);
         }
@@ -98,18 +92,15 @@ export class PermissionEngine {
     private canAutoApprove(action: ActionRequest): boolean {
         const safetyLevel = configManager.getSafetyLevel();
 
-        // Strict mode: never auto-approve
         if (safetyLevel === 'strict') {
             return action.riskLevel === 'safe';
         }
 
-        // Moderate mode: auto-approve safe and some moderate actions
         if (safetyLevel === 'moderate') {
             return action.riskLevel === 'safe' ||
                 (action.riskLevel === 'moderate' && action.reversible);
         }
 
-        // Relaxed mode: auto-approve safe and moderate actions
         if (safetyLevel === 'relaxed') {
             return action.riskLevel !== 'critical';
         }

@@ -1,6 +1,4 @@
-/**
- * Streaming utilities for real-time AI output
- */
+
 
 export interface StreamChunk {
     content: string;
@@ -79,9 +77,6 @@ export class StreamAggregator {
     }
 }
 
-/**
- * Converts an async iterable to a stream buffer
- */
 export async function* streamAsyncIterable<T>(
     iterable: AsyncIterable<T>,
     transform: (item: T) => string
@@ -91,9 +86,6 @@ export async function* streamAsyncIterable<T>(
     }
 }
 
-/**
- * Throttles stream updates to prevent overwhelming the UI
- */
 export class ThrottledStream {
     private buffer: StreamBuffer;
     private throttleMs: number;

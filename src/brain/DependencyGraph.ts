@@ -1,6 +1,4 @@
-/**
- * Dependency Graph - Builds and maintains file dependency relationships
- */
+
 
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -20,15 +18,12 @@ export class DependencyGraphBuilder {
 
         const files = await this.findAllFiles(workspaceRoot);
 
-        // Parse all files
         for (const file of files) {
             await this.addFileToGraph(file);
         }
 
-        // Build edges
         this.buildEdges();
 
-        // Detect circular dependencies
         this.detectCircularDependencies();
 
         logger.info(`Dependency graph built: ${this.graph.nodes.size} files, ${this.graph.edges.size} dependencies`);
@@ -78,7 +73,6 @@ export class DependencyGraphBuilder {
         const currentDir = path.dirname(currentFile);
 
         for (const importStatement of imports) {
-            // Extract import path from statement
             const match = importStatement.match(/from\s+['"]([^'"]+)['"]/);
             if (!match) {
                 continue;
@@ -86,12 +80,10 @@ export class DependencyGraphBuilder {
 
             const importPath = match[1];
 
-            // Skip node_modules
             if (!importPath.startsWith('.')) {
                 continue;
             }
 
-            // Resolve relative path
             const resolvedPath = this.resolveImportPath(importPath, currentDir);
             if (resolvedPath) {
                 dependencies.push(resolvedPath);
@@ -102,12 +94,10 @@ export class DependencyGraphBuilder {
     }
 
     private resolveImportPath(importPath: string, currentDir: string): string | null {
-        // Handle relative imports
         const extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java'];
 
         let resolvedPath = path.resolve(currentDir, importPath);
 
-        // Try with extensions
         for (const ext of extensions) {
             const withExt = resolvedPath + ext;
             if (this.graph.nodes.has(withExt)) {
@@ -115,7 +105,6 @@ export class DependencyGraphBuilder {
             }
         }
 
-        // Try index files
         for (const ext of extensions) {
             const indexPath = path.join(resolvedPath, `index${ext}`);
             if (this.graph.nodes.has(indexPath)) {
@@ -156,7 +145,6 @@ export class DependencyGraphBuilder {
                 if (!visited.has(dep)) {
                     dfs(dep, [...path]);
                 } else if (recursionStack.has(dep)) {
-                    // Found a cycle
                     const cycleStart = path.indexOf(dep);
                     const cycle = path.slice(cycleStart);
                     cycles.push(cycle);

@@ -43,7 +43,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
-    // Handle editing message
     useEffect(() => {
         if (editingMessage) {
             setInput(editingMessage);
@@ -51,25 +50,21 @@ export const InputArea: React.FC<InputAreaProps> = ({
         }
     }, [editingMessage, onEditComplete]);
 
-    // Handle input changes and show suggestions
     const handleInputChange = (value: string) => {
         setInput(value);
 
         const cursorPosition = value.length;
         const textBeforeCursor = value.substring(0, cursorPosition);
 
-        // File/Directory suggestions (@)
         const atMatch = textBeforeCursor.match(/@([\w\-\.\/]*)$/);
         if (atMatch) {
             const query = atMatch[1].toLowerCase();
 
-            // Enhanced matching: support both fuzzy and path-based matching
             const matches = availableFiles
                 .filter((item) => {
                     const itemPath = item.path.toLowerCase();
                     const fileName = item.path.split('/').pop()?.toLowerCase() || '';
 
-                    // Match if query is in path or filename
                     return itemPath.includes(query) || fileName.includes(query);
                 })
                 .slice(0, 10)
@@ -86,7 +81,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
             }
         }
 
-        // Command suggestions (/)
         const slashMatch = textBeforeCursor.match(/^\/(\w*)$/);
         if (slashMatch) {
             const query = slashMatch[1].toLowerCase();
@@ -106,7 +100,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
         setShowSuggestions(false);
     };
 
-    // Handle keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (showSuggestions) {
             if (e.key === 'ArrowDown') {
@@ -130,13 +123,11 @@ export const InputArea: React.FC<InputAreaProps> = ({
         }
     };
 
-    // Select a suggestion
     const selectSuggestion = (suggestion: { text: string; type: 'file' | 'directory' | 'command' }) => {
         let newText = input;
 
         if (suggestion.type === 'file' || suggestion.type === 'directory') {
             newText = input.replace(/@([\w\-\.\/]*)$/, '@' + suggestion.text + ' ');
-            // Only add files to attachedFiles, not directories
             if (suggestion.type === 'file' && !attachedFiles.find(f => f.name === suggestion.text)) {
                 setAttachedFiles(prev => [...prev, {
                     id: Date.now().toString() + Math.random(),
@@ -152,7 +143,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
         setShowSuggestions(false);
     };
 
-    // Handle send
     const handleSend = () => {
         if (!input.trim() && attachedFiles.length === 0) return;
         onSend(input, attachedFiles);
@@ -160,7 +150,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
         setAttachedFiles([]);
     };
 
-    // Handle file uploads
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
@@ -201,7 +190,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
         if (imageInputRef.current) imageInputRef.current.value = '';
     };
 
-    // Handle image paste
     const handleImagePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const items = event.clipboardData?.items;
         if (!items) return;
@@ -240,7 +228,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
         <div className="border-t border-zinc-800/50 bg-gradient-to-b from-zinc-950 to-black backdrop-blur-xl sticky bottom-0">
             <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
                 <div className="relative">
-                    {/* Suggestions Popup */}
                     <SuggestionPopup
                         isVisible={showSuggestions}
                         suggestions={suggestions}
@@ -248,14 +235,10 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         onSelect={selectSuggestion}
                     />
 
-                    {/* Main Input Container */}
                     <div className="relative bg-zinc-900/80 border border-zinc-800 rounded-2xl shadow-2xl transition-all duration-200 backdrop-blur-sm">
-                        {/* Attached Files */}
                         {attachedFiles.length > 0 && (
                             <AttachedFiles files={attachedFiles} onRemove={removeFile} />
                         )}
-
-                        {/* Text Input Area */}
                         <div className="p-4">
                             <ChatTextArea
                                 value={input}
@@ -266,23 +249,19 @@ export const InputArea: React.FC<InputAreaProps> = ({
                             />
                         </div>
 
-                        {/* Action Bar */}
                         <div className="flex justify-between items-center px-4 pb-4 pt-2 border-t border-zinc-800/50">
                             <div className="flex items-center gap-1">
-                                {/* File/Image Attachment Buttons */}
                                 <FileAttachmentButtons
                                     onFileClick={() => fileInputRef.current?.click()}
                                     onImageClick={() => imageInputRef.current?.click()}
                                 />
 
-                                {/* Model Selector */}
                                 <ModelSelector
                                     selectedModel={selectedModel}
                                     onModelSelect={handleModelChange}
                                 />
                             </div>
 
-                            {/* Send/Stop Button */}
                             <SendStopButton
                                 isLoading={isLoading}
                                 disabled={!input.trim() && attachedFiles.length === 0}
@@ -292,7 +271,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         </div>
                     </div>
 
-                    {/* Disclaimer */}
                     <div className="mt-3 text-center">
                         <p className="text-[8px] lg:text-xs text-zinc-500">
                             CodeMind AI can make mistakes. Consider checking important information.
@@ -301,7 +279,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 </div>
             </div>
 
-            {/* Hidden File Inputs */}
             <input
                 ref={fileInputRef}
                 type="file"

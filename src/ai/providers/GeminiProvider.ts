@@ -1,6 +1,4 @@
-/**
- * Google Gemini AI Provider (Free tier with large context)
- */
+
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BaseProvider } from './BaseProvider';
@@ -40,7 +38,6 @@ export class GeminiProvider extends BaseProvider {
             logger.info(`Gemini API key length: ${this.apiKey.length}`);
             logger.info(`Gemini API key starts with: ${this.apiKey.substring(0, 4)}`);
 
-            // Verify API key format (should start with 'AIza')
             if (!this.apiKey.startsWith('AIza')) {
                 logger.error(`Gemini API key format invalid - starts with "${this.apiKey.substring(0, 4)}" but should start with "AIza"`);
                 return false;
@@ -62,7 +59,6 @@ export class GeminiProvider extends BaseProvider {
         const startTime = Date.now();
 
         try {
-            // Use gemini-2.5-flash as default if not specified or if legacy model is requested
             let modelName = request.model;
             if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
                 modelName = 'gemini-2.5-flash';
@@ -107,7 +103,6 @@ export class GeminiProvider extends BaseProvider {
         let fullContent = '';
 
         try {
-            // Use gemini-2.5-flash as default if not specified or if legacy model is requested
             let modelName = request.model;
             if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
                 modelName = 'gemini-2.5-flash';
@@ -121,7 +116,6 @@ export class GeminiProvider extends BaseProvider {
             const result = await model.generateContentStream(prompt);
 
             for await (const chunk of result.stream) {
-                // Check if request was aborted
                 if (signal?.aborted) {
                     logger.info('Gemini streaming cancelled by user');
                     throw new Error('Request cancelled');

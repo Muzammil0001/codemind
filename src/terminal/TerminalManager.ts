@@ -1,6 +1,4 @@
-/**
- * Terminal Manager - Handles terminal command execution and management
- */
+
 
 import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
@@ -19,9 +17,6 @@ export type TerminalOutputCallback = (commandId: string, line: TerminalOutputLin
 export type TerminalStatusCallback = (commandId: string, status: CommandStatus, pid?: number) => void;
 export type TerminalCompleteCallback = (commandId: string, exitCode: number, duration: number, status: CommandStatus) => void;
 
-/**
- * Manages terminal command execution with support for both chat and main terminal
- */
 export class TerminalManager {
     private commands: Map<string, TerminalCommand> = new Map();
     private processes: Map<string, ChildProcess> = new Map();
@@ -35,30 +30,18 @@ export class TerminalManager {
         logger.info('TerminalManager initialized');
     }
 
-    /**
-     * Set callback for terminal output
-     */
     setOnOutput(callback: TerminalOutputCallback): void {
         this.onOutputCallback = callback;
     }
 
-    /**
-     * Set callback for terminal status updates
-     */
     setOnStatus(callback: TerminalStatusCallback): void {
         this.onStatusCallback = callback;
     }
 
-    /**
-     * Set callback for terminal completion
-     */
     setOnComplete(callback: TerminalCompleteCallback): void {
         this.onCompleteCallback = callback;
     }
 
-    /**
-     * Execute a terminal command
-     */
     async executeCommand(
         command: string,
         options: CommandExecutionOptions
@@ -68,7 +51,6 @@ export class TerminalManager {
 
         logger.info(`Executing command ${commandId}: ${command} in ${cwd}`);
 
-        // Create command object
         const terminalCommand: TerminalCommand = {
             id: commandId,
             command,
@@ -83,7 +65,6 @@ export class TerminalManager {
         this.commands.set(commandId, terminalCommand);
 
         try {
-            // Execute based on location
             if (options.location === TerminalLocation.CHAT) {
                 await this.executeInBackground(commandId, command, cwd, options.env);
             } else {
@@ -112,9 +93,6 @@ export class TerminalManager {
         }
     }
 
-    /**
-     * Execute command in background using child_process
-     */
     private async executeInBackground(
         commandId: string,
         command: string,
@@ -126,11 +104,9 @@ export class TerminalManager {
             throw new Error(`Command ${commandId} not found`);
         }
 
-        // Parse command for shell execution
         const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
         const shellArgs = process.platform === 'win32' ? ['/c', command] : ['-c', command];
 
-        // Spawn the process
         const childProcess = spawn(shell, shellArgs, {
             cwd,
             env: { ...process.env, ...env },
@@ -142,16 +118,13 @@ export class TerminalManager {
         terminalCommand.pid = childProcess.pid;
         terminalCommand.startTime = Date.now();
 
-        // Notify status update
         this.notifyStatus(commandId, CommandStatus.RUNNING, childProcess.pid);
 
-        // Handle stdout
         childProcess.stdout?.on('data', (data: Buffer) => {
             const output = data.toString();
             this.addOutput(commandId, output, 'stdout');
         });
 
-        // Handle stderr
         childProcess.stderr?.on('data', (data: Buffer) => {
             const output = data.toString();
             this.addOutput(commandId, output, 'stderr');
@@ -159,7 +132,6 @@ export class TerminalManager {
 
         logger.info(`Starting background process for command ${commandId}: ${command} in ${cwd}`);
 
-        // Set up a fail-safe timeout (e.g., 5 minutes = 300000 ms)
         const FAILSAFE_TIMEOUT_MS = 300000;
         let isCompleted = false;
         const timeout = setTimeout(() => {
@@ -179,7 +151,6 @@ export class TerminalManager {
             }
         }, FAILSAFE_TIMEOUT_MS);
 
-        // Handle process exit
         childProcess.on('exit', (code, signal) => {
             if (isCompleted) return;
             isCompleted = true;
@@ -206,7 +177,6 @@ export class TerminalManager {
             logger.info(`Command ${commandId} exited with code ${exitCode}`);
         });
 
-        // Handle errors
         childProcess.on('error', (error) => {
             if (isCompleted) return;
             isCompleted = true;
@@ -221,9 +191,6 @@ export class TerminalManager {
         });
     }
 
-    /**
-     * Execute command in main VS Code terminal
-     */
     private async executeInMainTerminal(
         commandId: string,
         command: string,
@@ -234,7 +201,6 @@ export class TerminalManager {
             throw new Error(`Command ${commandId} not found`);
         }
 
-        // Create or reuse terminal
         let terminal = this.terminals.get('main');
         if (!terminal || terminal.exitStatus) {
             terminal = vscode.window.createTerminal({
@@ -244,10 +210,8 @@ export class TerminalManager {
             this.terminals.set('main', terminal);
         }
 
-        // Show terminal
         terminal.show();
 
-        // Send command
         terminal.sendText(command);
 
         terminalCommand.status = CommandStatus.RUNNING;
@@ -255,8 +219,6 @@ export class TerminalManager {
 
         this.notifyStatus(commandId, CommandStatus.RUNNING);
 
-        // Note: VS Code Terminal API doesn't provide output capture
-        // We'll mark it as completed after a short delay
         setTimeout(() => {
             terminalCommand.status = CommandStatus.COMPLETED;
             terminalCommand.endTime = Date.now();
@@ -269,9 +231,6 @@ export class TerminalManager {
         }, 1000);
     }
 
-    /**
-     * Stop a running command
-     */
     stopCommand(commandId: string): boolean {
         const command = this.commands.get(commandId);
         if (!command) {
@@ -288,10 +247,8 @@ export class TerminalManager {
         if (process) {
             logger.info(`Stopping command ${commandId} (PID: ${process.pid})`);
 
-            // Try graceful termination first
             process.kill('SIGTERM');
 
-            // Force kill after timeout
             setTimeout(() => {
                 if (this.processes.has(commandId)) {
                     logger.warn(`Force killing command ${commandId}`);
@@ -305,39 +262,24 @@ export class TerminalManager {
         return false;
     }
 
-    /**
-     * Get command by ID
-     */
     getCommand(commandId: string): TerminalCommand | undefined {
         return this.commands.get(commandId);
     }
 
-    /**
-     * Get all running commands
-     */
     getRunningCommands(): TerminalCommand[] {
         return Array.from(this.commands.values()).filter(
             cmd => cmd.status === CommandStatus.RUNNING
         );
     }
 
-    /**
-     * Get all commands
-     */
     getAllCommands(): TerminalCommand[] {
         return Array.from(this.commands.values());
     }
 
-    /**
-     * Get process by command ID (for terminal relocation)
-     */
     getProcess(commandId: string): ChildProcess | undefined {
         return this.processes.get(commandId);
     }
 
-    /**
-     * Clear completed commands
-     */
     clearCompleted(): void {
         for (const [id, command] of this.commands.entries()) {
             if (command.status === CommandStatus.COMPLETED ||
@@ -348,18 +290,13 @@ export class TerminalManager {
         }
     }
 
-    /**
-     * Dispose all resources
-     */
     dispose(): void {
-        // Kill all running processes
         for (const [commandId, process] of this.processes.entries()) {
             logger.info(`Disposing command ${commandId}`);
             process.kill('SIGTERM');
         }
         this.processes.clear();
 
-        // Dispose all terminals
         for (const terminal of this.terminals.values()) {
             terminal.dispose();
         }
@@ -369,9 +306,6 @@ export class TerminalManager {
         logger.info('TerminalManager disposed');
     }
 
-    /**
-     * Add output line to command
-     */
     private addOutput(commandId: string, content: string, type: 'stdout' | 'stderr'): void {
         const command = this.commands.get(commandId);
         if (!command) {
@@ -389,45 +323,31 @@ export class TerminalManager {
 
             command.output.push(outputLine);
 
-            // Notify callback
             if (this.onOutputCallback) {
                 this.onOutputCallback(commandId, outputLine);
             }
         }
     }
 
-    /**
-     * Notify status change
-     */
     private notifyStatus(commandId: string, status: CommandStatus, pid?: number): void {
         if (this.onStatusCallback) {
             this.onStatusCallback(commandId, status, pid);
         }
     }
 
-    /**
-     * Notify command completion
-     */
     private notifyComplete(commandId: string, exitCode: number, duration: number, status: CommandStatus): void {
         if (this.onCompleteCallback) {
             this.onCompleteCallback(commandId, exitCode, duration, status);
         }
     }
 
-    /**
-     * Generate unique command ID
-     */
     private generateCommandId(): string {
         return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    /**
-     * Assess command risk level
-     */
     private assessCommandRisk(command: string): CommandRiskLevel {
         const cmd = command.toLowerCase().trim();
 
-        // Dangerous patterns
         const dangerousPatterns = [
             /rm\s+-rf/,
             /rm\s+-fr/,
@@ -437,7 +357,7 @@ export class TerminalManager {
             /reboot/,
             /mkfs/,
             /dd\s+if=/,
-            /:\(\)\{/,  // Fork bomb pattern
+            /:\(\)\{/,  
             />\/dev\/sd/,
             /curl.*\|.*sh/,
             /wget.*\|.*sh/
@@ -447,7 +367,6 @@ export class TerminalManager {
             return CommandRiskLevel.DANGEROUS;
         }
 
-        // Moderate patterns
         const moderatePatterns = [
             /rm\s+/,
             /git\s+push/,

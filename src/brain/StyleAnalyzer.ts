@@ -1,7 +1,3 @@
-/**
- * Style Analyzer - Learns project coding style and conventions
- */
-
 import * as vscode from 'vscode';
 import { CodeStyle } from '../types';
 import { logger } from '../utils/logger';
@@ -79,7 +75,6 @@ export class StyleAnalyzer {
 
         const type = tabsCount > spacesCount ? 'tabs' : 'spaces';
 
-        // Find most common space size
         let size = 2;
         if (spaceSizes.length > 0) {
             const sizeFrequency = new Map<number, number>();
@@ -137,7 +132,6 @@ export class StyleAnalyzer {
                 if (trimmed.endsWith(';')) {
                     withSemicolon++;
                 } else if (trimmed.match(/[a-zA-Z0-9)\]}\`]$/)) {
-                    // Line ends with code but no semicolon
                     withoutSemicolon++;
                 }
             }

@@ -1,6 +1,4 @@
-/**
- * Diff Engine Types
- */
+
 
 export interface DiffResult {
     original: string;

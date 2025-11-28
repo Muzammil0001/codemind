@@ -1,6 +1,4 @@
-/**
- * Test Agent - Generates comprehensive tests
- */
+
 
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
@@ -66,7 +64,6 @@ export class TestAgent extends BaseAgent {
     private async detectTestFramework(): Promise<string> {
         const brainState = projectBrain.getState();
 
-        // Check for common test frameworks
         const frameworks = brainState?.frameworks.map(f => f.name.toLowerCase()) || [];
 
         if (frameworks.some(f => f.includes('jest'))) {
@@ -79,7 +76,6 @@ export class TestAgent extends BaseAgent {
             return 'pytest';
         }
 
-        // Default to Jest for JavaScript/TypeScript
         return 'Jest';
     }
 

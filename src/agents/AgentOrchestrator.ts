@@ -1,6 +1,4 @@
-/**
- * Agent Orchestrator - Coordinates multiple specialized agents
- */
+
 
 import { AgentTask, AgentResult, AgentType, ExecutionPlan } from '../types';
 import { BaseAgent } from './BaseAgent';
@@ -23,7 +21,6 @@ export class AgentOrchestrator {
     constructor() {
         this.registerAgents();
 
-        // Initialize task queue with concurrency control
         const parallelEnabled = configManager.get('enableParallelExecution', true);
         this.taskQueue = new PQueue({
             concurrency: parallelEnabled ? 3 : 1
@@ -38,7 +35,6 @@ export class AgentOrchestrator {
         this.agents.set('documenter', documentationAgent);
         this.agents.set('image-to-code', imageToCodeAgent);
         this.agents.set('langchain', langChainOrchestrator);
-        // More agents will be registered here as they're created
 
         logger.info(`Registered ${this.agents.size} agents`);
     }
@@ -49,21 +45,17 @@ export class AgentOrchestrator {
         this.activeTasks.set(task.id, task);
 
         try {
-            // Update task status
             task.status = 'running';
             task.startedAt = Date.now();
 
-            // Get appropriate agent
             const agent = this.agents.get(task.type);
 
             if (!agent) {
                 throw new Error(`No agent available for type: ${task.type}`);
             }
 
-            // Execute task
             const result = await this.taskQueue.add(() => agent.run(task)) as AgentResult;
 
-            // Update task status
             task.status = 'completed';
             task.completedAt = Date.now();
             task.result = result;
@@ -85,10 +77,8 @@ export class AgentOrchestrator {
         const results = new Map<string, AgentResult>();
         const completed = new Set<string>();
 
-        // Execute steps in dependency order
         while (completed.size < plan.steps.length) {
             const readySteps = plan.steps.filter(step => {
-                // Step is ready if all dependencies are completed
                 return !completed.has(step.id) &&
                     step.dependencies.every(dep => completed.has(dep));
             });
@@ -97,7 +87,6 @@ export class AgentOrchestrator {
                 throw new Error('Circular dependency detected in plan');
             }
 
-            // Execute ready steps in parallel
             const stepPromises = readySteps.map(async (step) => {
                 const task: AgentTask = {
                     id: `task-${step.id}`,
@@ -125,7 +114,6 @@ export class AgentOrchestrator {
     }
 
     private getAgentTypeForAction(action: string): AgentType {
-        // Map action types to agent types
         if (action.includes('plan')) {
             return 'planner';
         } else if (action.includes('test')) {

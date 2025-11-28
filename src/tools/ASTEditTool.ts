@@ -1,7 +1,4 @@
-/**
- * AST Edit Tool
- * Surgical code editing using AST manipulation with Recast and Babel
- */
+
 
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
@@ -35,14 +32,13 @@ export class ASTEditTool implements BaseTool {
             const ast = this.parseCode(code, filePath);
             const changes: string[] = [];
 
-            // Perform operation
             switch (operation) {
                 case 'rename':
                     this.renameIdentifier(ast, target, value);
                     changes.push(`Renamed ${target} to ${value}`);
                     break;
                 case 'add-import':
-                    this.addImport(ast, target, value); // target=source, value=specifiers
+                    this.addImport(ast, target, value); 
                     changes.push(`Added import from ${target}`);
                     break;
                 case 'remove-import':
@@ -50,7 +46,6 @@ export class ASTEditTool implements BaseTool {
                     changes.push(`Removed import from ${target}`);
                     break;
                 case 'add-parameter':
-                    // value should be { name: string, type?: string, defaultValue?: string }
                     this.addParameter(ast, target, value);
                     changes.push(`Added parameter to ${target}`);
                     break;
@@ -58,10 +53,8 @@ export class ASTEditTool implements BaseTool {
                     throw new Error(`Unsupported operation: ${operation}`);
             }
 
-            // Generate code
             const newCode = recast.print(ast).code;
 
-            // Write back
             await fs.writeFile(fullPath, newCode);
 
             return {
@@ -70,7 +63,7 @@ export class ASTEditTool implements BaseTool {
                     success: true,
                     filePath,
                     changes,
-                    ast: undefined // Don't return full AST
+                    ast: undefined 
                 }
             };
 
@@ -113,22 +106,17 @@ export class ASTEditTool implements BaseTool {
     }
 
     private addImport(ast: any, source: string, specifiers: string[] | string) {
-        // Check if import already exists
         let exists = false;
         traverse(ast, {
             ImportDeclaration(path) {
                 if (path.node.source.value === source) {
                     exists = true;
-                    // TODO: Merge specifiers if needed
                 }
             }
         });
 
         if (exists) return;
 
-        // Create import declaration
-        // Note: This is a simplified implementation. 
-        // In a real scenario, we'd need to handle default vs named imports properly based on 'specifiers'
         const importDecl = t.importDeclaration(
             Array.isArray(specifiers)
                 ? specifiers.map(s => t.importSpecifier(t.identifier(s), t.identifier(s)))
@@ -136,7 +124,6 @@ export class ASTEditTool implements BaseTool {
             t.stringLiteral(source)
         );
 
-        // Add to top of file
         ast.program.body.unshift(importDecl);
     }
 
@@ -163,7 +150,6 @@ export class ASTEditTool implements BaseTool {
                     path.node.params.push(param);
                 }
             },
-            // Handle arrow functions and methods similarly...
         });
     }
 }

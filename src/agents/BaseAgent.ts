@@ -1,6 +1,4 @@
-/**
- * Base Agent - Abstract class for all specialized agents
- */
+
 
 import { AgentTask, AgentResult, AgentType } from '../types';
 import { logger } from '../utils/logger';

@@ -32,7 +32,6 @@ export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, o
         });
     }, [postMessage]);
 
-
     return (
         <div className={`group flex w-full gap-2 sm:gap-3 md:gap-4 animate-fade-in ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex-1 min-w-0 ${isUser ? 'max-w-[90%] sm:max-w-2xl ml-auto' : 'max-w-[95%] sm:max-w-3xl'}`}>

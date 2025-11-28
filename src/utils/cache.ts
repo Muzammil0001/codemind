@@ -1,6 +1,4 @@
-/**
- * Caching system for embeddings and analysis results
- */
+
 
 export interface CacheEntry<T> {
     value: T;
@@ -10,9 +8,9 @@ export interface CacheEntry<T> {
 }
 
 export interface CacheOptions {
-    maxSize?: number; // Maximum cache size in bytes
-    maxAge?: number; // Maximum age in milliseconds
-    maxEntries?: number; // Maximum number of entries
+    maxSize?: number; 
+    maxAge?: number; 
+    maxEntries?: number; 
 }
 
 export class Cache<T> {
@@ -22,8 +20,8 @@ export class Cache<T> {
 
     constructor(options: CacheOptions = {}) {
         this.options = {
-            maxSize: options.maxSize ?? 100 * 1024 * 1024, // 100MB default
-            maxAge: options.maxAge ?? 3600000, // 1 hour default
+            maxSize: options.maxSize ?? 100 * 1024 * 1024, 
+            maxAge: options.maxAge ?? 3600000, 
             maxEntries: options.maxEntries ?? 1000
         };
     }
@@ -31,13 +29,11 @@ export class Cache<T> {
     set(key: string, value: T): void {
         const size = this.estimateSize(value);
 
-        // Remove old entry if exists
         if (this.cache.has(key)) {
             const oldEntry = this.cache.get(key)!;
             this.currentSize -= oldEntry.size;
         }
 
-        // Evict if necessary
         while (
             this.currentSize + size > this.options.maxSize ||
             this.cache.size >= this.options.maxEntries
@@ -62,13 +58,11 @@ export class Cache<T> {
             return undefined;
         }
 
-        // Check if expired
         if (Date.now() - entry.timestamp > this.options.maxAge) {
             this.delete(key);
             return undefined;
         }
 
-        // Update hit count
         entry.hits++;
 
         return entry.value;
@@ -81,7 +75,6 @@ export class Cache<T> {
             return false;
         }
 
-        // Check if expired
         if (Date.now() - entry.timestamp > this.options.maxAge) {
             this.delete(key);
             return false;
@@ -120,7 +113,7 @@ export class Cache<T> {
 
         for (const entry of this.cache.values()) {
             totalHits += entry.hits;
-            totalAccesses += entry.hits + 1; // +1 for initial set
+            totalAccesses += entry.hits + 1; 
         }
 
         return {
@@ -135,7 +128,6 @@ export class Cache<T> {
         let oldestTime = Infinity;
         let lowestHits = Infinity;
 
-        // Find least recently used entry with lowest hit count
         for (const [key, entry] of this.cache.entries()) {
             if (entry.timestamp < oldestTime ||
                 (entry.timestamp === oldestTime && entry.hits < lowestHits)) {
@@ -151,24 +143,22 @@ export class Cache<T> {
     }
 
     private estimateSize(value: T): number {
-        // Rough estimation of object size in bytes
         const json = JSON.stringify(value);
-        return json.length * 2; // UTF-16 encoding
+        return json.length * 2; 
     }
 }
 
-// Global caches
 export const embeddingCache = new Cache<number[]>({
-    maxSize: 50 * 1024 * 1024, // 50MB
-    maxAge: 3600000 // 1 hour
+    maxSize: 50 * 1024 * 1024, 
+    maxAge: 3600000 
 });
 
 export const analysisCache = new Cache<any>({
-    maxSize: 20 * 1024 * 1024, // 20MB
-    maxAge: 1800000 // 30 minutes
+    maxSize: 20 * 1024 * 1024, 
+    maxAge: 1800000 
 });
 
 export const responseCache = new Cache<string>({
-    maxSize: 10 * 1024 * 1024, // 10MB
-    maxAge: 600000 // 10 minutes
+    maxSize: 10 * 1024 * 1024, 
+    maxAge: 600000 
 });

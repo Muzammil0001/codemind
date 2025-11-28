@@ -1,7 +1,4 @@
-/**
- * Intelligent Model Router
- * Selects the best AI model based on task requirements, availability, and performance
- */
+
 
 import { BaseProvider } from './providers/BaseProvider';
 import { GroqProvider } from './providers/GroqProvider';
@@ -26,7 +23,7 @@ export interface ModelSelection {
 export class ModelRouter {
     private providers: Map<ModelProvider, BaseProvider> = new Map();
     private availabilityCache: Map<ModelProvider, { available: boolean; checkedAt: number }> = new Map();
-    private readonly AVAILABILITY_CACHE_TTL = 60000; // 1 minute
+    private readonly AVAILABILITY_CACHE_TTL = 60000;
 
     constructor() {
         this.initializeProviders();
@@ -35,7 +32,6 @@ export class ModelRouter {
     private initializeProviders(): void {
         const config = configManager.getConfig();
 
-        // Initialize cloud providers
         if (config.apiKeys.groq) {
             this.providers.set('groq', new GroqProvider(config.apiKeys.groq));
         }
@@ -52,7 +48,6 @@ export class ModelRouter {
             this.providers.set('openai', new OpenAIProvider(config.apiKeys.openai));
         }
 
-        // Initialize local providers if enabled
         if (config.enableLocalModels) {
             this.providers.set('ollama', new OllamaProvider(config.ollamaUrl));
             this.providers.set('lmstudio', new LMStudioProvider(config.lmstudioUrl));
@@ -61,7 +56,6 @@ export class ModelRouter {
         logger.info(`Initialized ${this.providers.size} AI providers`);
     }
 
-
     async selectModel(
         capability?: ModelCapability,
         preferFast: boolean = false,
@@ -69,12 +63,10 @@ export class ModelRouter {
     ): Promise<ModelSelection> {
         const config = configManager.getConfig();
 
-        // In turbo mode, always prefer fastest model
         if (config.turboMode) {
             preferFast = true;
         }
 
-        // Try primary model first
         const primaryModelId = config.primaryModel;
         const primaryConfig = getModelConfig(primaryModelId);
 
@@ -92,7 +84,6 @@ export class ModelRouter {
             }
         }
 
-        // Fallback to intelligent selection
         if (config.enableAutoFallback) {
             return await this.intelligentSelection(capability, preferFast, preferLongContext);
         }
@@ -105,7 +96,6 @@ export class ModelRouter {
         preferFast: boolean = false,
         preferLongContext: boolean = false
     ): Promise<ModelSelection> {
-        // Get suitable model based on requirements
         let targetModel;
 
         if (preferLongContext) {
@@ -113,11 +103,9 @@ export class ModelRouter {
         } else if (preferFast) {
             targetModel = getFastestModel(capability);
         } else {
-            // Balance between speed and capability
             targetModel = getFastestModel(capability);
         }
 
-        // Check if provider is available
         const provider = this.providers.get(targetModel.provider);
 
         if (provider && await this.isProviderAvailable(targetModel.provider)) {
@@ -130,7 +118,6 @@ export class ModelRouter {
             };
         }
 
-        // Try other available providers
         for (const [providerType, providerInstance] of this.providers.entries()) {
             if (await this.isProviderAvailable(providerType)) {
                 const modelConfig = getModelConfig(`${providerType}-default`);
@@ -177,9 +164,6 @@ export class ModelRouter {
         request: AIRequest,
         capability?: ModelCapability
     ): Promise<AIResponse> {
-        // Check cache first
-        console.log("request====>>", request);
-        logger.info("request====>>", request);
         const cacheKey = this.getCacheKey(request);
         const cached = responseCache.get(cacheKey);
 
@@ -190,11 +174,8 @@ export class ModelRouter {
 
         let selection: ModelSelection;
 
-        // If specific model requested, validate and use it
         if (request.model) {
             const modelConfig = getModelConfig(request.model);
-            console.log("modelConfig====>>", modelConfig);
-            logger.info("modelConfig====>>", modelConfig);
             if (!modelConfig) {
                 throw new Error(`Invalid model ID: ${request.model}`);
             }
@@ -214,7 +195,6 @@ export class ModelRouter {
                 reason: 'Explicitly requested'
             };
         } else {
-            // Select appropriate model automatically
             selection = await this.selectModel(
                 capability,
                 configManager.isTurboMode(),
@@ -224,7 +204,6 @@ export class ModelRouter {
 
         logger.info(`Selected model: ${selection.modelId} (${selection.reason})`);
 
-        // Generate completion with performance tracking
         const response = await performanceMonitor.measure(
             `ai-completion-${selection.modelId}`,
             async () => {
@@ -233,7 +212,6 @@ export class ModelRouter {
             }
         );
 
-        // Cache response
         if (configManager.getConfig().cacheEmbeddings) {
             responseCache.set(cacheKey, JSON.stringify(response));
         }
@@ -255,8 +233,6 @@ export class ModelRouter {
         logger.info(`Streaming with model: ${selection.modelId} (${selection.reason})`);
 
         const fullRequest = { ...request, model: selection.modelId };
-        console.log("fullRequest====>>", fullRequest);
-        logger.info("fullRequest====>>", fullRequest);
         return await performanceMonitor.measure(
             `ai-stream-${selection.modelId}`,
             async () => {

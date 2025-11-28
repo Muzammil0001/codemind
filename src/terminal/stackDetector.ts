@@ -26,7 +26,6 @@ export class StackDetector {
       return { primary: 'unknown' };
     }
 
-    // Check for Node.js
     if (await this.fileExists(workspaceRoot, 'package.json')) {
       const packageJson = await this.readJson(path.join(workspaceRoot, 'package.json'));
       const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
@@ -43,17 +42,14 @@ export class StackDetector {
       return { primary, packageManager };
     }
 
-    // Check for Python
     if (await this.fileExists(workspaceRoot, 'requirements.txt') || await this.fileExists(workspaceRoot, 'pyproject.toml')) {
       return { primary: 'python', packageManager: 'pip' };
     }
 
-    // Check for Maven
     if (await this.fileExists(workspaceRoot, 'pom.xml')) {
       return { primary: 'maven' };
     }
 
-    // Check for PHP/Laravel
     if (await this.fileExists(workspaceRoot, 'composer.json')) {
       const composerJson = await this.readJson(path.join(workspaceRoot, 'composer.json'));
       const dependencies = { ...composerJson.require, ...composerJson['require-dev'] };

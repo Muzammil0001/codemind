@@ -10,7 +10,6 @@ export interface Notification {
 interface NotificationState {
     notifications: Notification[];
 
-    // Actions
     addNotification: (message: string, type?: Notification['type'], duration?: number) => void;
     removeNotification: (id: string) => void;
     clearNotifications: () => void;

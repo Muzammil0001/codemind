@@ -1,12 +1,7 @@
-/**
- * Centralized Prompts Configuration
- * All AI prompts and instructions in one place
- */
+
 
 export const PROMPTS = {
-    /**
-     * System instructions for different agents
-     */
+    
     SYSTEM: {
         CODER: `
         You are Code Agent, an AI coding assistant integrated into VS Code.
@@ -49,10 +44,6 @@ Guidelines:
 8. Wrap only the code in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.`,
     },
 
-    /**
-     * Command analysis prompt template
-     * Platform: windows | macos | linux
-     */
     COMMAND_ANALYSIS: (params: {
         projectType: string;
         packageManager: string;
@@ -99,9 +90,6 @@ Examples:
 
 Respond ONLY with the JSON object, no additional text.`,
 
-    /**
-     * Coding task prompt template
-     */
     CODING_TASK: (params: {
         description: string;
         frameworks?: string;

@@ -1,7 +1,4 @@
-/**
- * Intent Classifier
- * Main entry point for intent detection, orchestrating the pipeline
- */
+
 
 import { IntentPipeline, IntentResult } from './IntentPipeline';
 import { logger } from '../utils/logger';
@@ -19,7 +16,6 @@ export class IntentClassifier {
 
             const result = await this.pipeline.analyze(query);
 
-            // Enrich with context if needed
             if (context) {
                 result.metadata = {
                     ...result.metadata,

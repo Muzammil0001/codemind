@@ -1,7 +1,4 @@
-/**
- * useTerminal Hook
- * Manages terminal command state and execution
- */
+
 
 import { useState, useEffect, useCallback } from 'react';
 import { useVSCode } from './useVSCode';
@@ -41,9 +38,6 @@ export function useTerminal(): UseTerminalReturn {
     const addOutput = useTerminalStore(state => state.addOutput);
     const clearCompleted = useTerminalStore(state => state.clearCompleted);
 
-    /**
-     * Handle messages from extension
-     */
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
@@ -51,7 +45,6 @@ export function useTerminal(): UseTerminalReturn {
             switch (message.type) {
                 case 'terminalCommandStarted':
                     if (message.success && message.commandId) {
-                        // Command started
                     } else if (!message.success) {
                         console.error('Failed to start terminal command:', message.error);
                         updateCommand(message.commandId, { status: 'failed' });
@@ -63,11 +56,10 @@ export function useTerminal(): UseTerminalReturn {
                     break;
 
                 case 'terminalStatus':
-                    // Check if command exists
                     if (!commands.has(message.commandId)) {
                         addCommand({
                             id: message.commandId,
-                            command: '', // Will be updated
+                            command: '', 
                             cwd: '',
                             status: message.status,
                             startTime: Date.now(),
@@ -112,15 +104,11 @@ export function useTerminal(): UseTerminalReturn {
         return () => window.removeEventListener('message', handleMessage);
     }, [addCommand, updateCommand, addOutput, commands]);
 
-    /**
-     * Execute a terminal command
-     */
     const executeCommand = useCallback((
         command: string,
         location: 'chat' | 'main' = 'chat',
         cwd?: string
     ) => {
-        // Create optimistic command entry
         const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const tempCommand: TerminalCommand = {
             id: commandId,
@@ -134,7 +122,6 @@ export function useTerminal(): UseTerminalReturn {
 
         addCommand(tempCommand);
 
-        // Send to extension
         postMessage({
             type: 'executeTerminalCommand',
             command,
@@ -146,9 +133,6 @@ export function useTerminal(): UseTerminalReturn {
         return commandId;
     }, [postMessage, addCommand]);
 
-    /**
-     * Stop a running command
-     */
     const stopCommand = useCallback((commandId: string) => {
         postMessage({
             type: 'stopTerminalCommand',
@@ -156,9 +140,6 @@ export function useTerminal(): UseTerminalReturn {
         });
     }, [postMessage]);
 
-    /**
-     * Get running commands from backend
-     */
     const getRunningCommands = useCallback(() => {
         postMessage({
             type: 'getRunningCommands'

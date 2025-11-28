@@ -1,6 +1,4 @@
-/**
- * Groq AI Provider (Fast inference with free tier)
- */
+
 
 import axios from 'axios';
 import { BaseProvider } from './BaseProvider';
@@ -124,7 +122,7 @@ export class GroqProvider extends BaseProvider {
                                     onChunk(content);
                                 }
                             } catch (e) {
-                                // Ignore parse errors for incomplete chunks
+                                logger.error('Groq streaming failed', e as Error);
                             }
                         }
                     }

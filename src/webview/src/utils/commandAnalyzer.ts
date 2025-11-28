@@ -1,7 +1,4 @@
-/**
- * AI-Powered Command Analyzer
- * Uses AI models to intelligently detect and generate shell commands from natural language
- */
+
 
 import type { CommandIntent, ProjectContext } from './commandDetection';
 import { PROMPTS } from '../../../config/prompts';
@@ -23,14 +20,10 @@ export interface AICommandResponse {
     reasoning?: string;
 }
 
-/**
- * Analyze user query with AI to detect command intent
- */
 export async function analyzeCommandWithAI(
     request: CommandAnalysisRequest
 ): Promise<CommandIntent | null> {
     try {
-        // Send message to backend for AI analysis
         const response = await sendMessageToBackend({
             type: 'analyzeCommand',
             data: request
@@ -40,7 +33,6 @@ export async function analyzeCommandWithAI(
             return null;
         }
 
-        // Convert AI response to CommandIntent
         return {
             type: response.type || 'file-op',
             command: response.command || '',
@@ -55,9 +47,6 @@ export async function analyzeCommandWithAI(
     }
 }
 
-/**
- * Build specialized prompt for AI command analysis
- */
 export function buildCommandAnalysisPrompt(request: CommandAnalysisRequest): string {
     const fileContext = request.availableFiles.length > 0
         ? `\nAvailable Files/Directories (sample):\n${request.availableFiles.slice(0, 20).map(f => `- ${f.path} (${f.type})`).join('\n')}`
@@ -73,12 +62,8 @@ export function buildCommandAnalysisPrompt(request: CommandAnalysisRequest): str
     });
 }
 
-/**
- * Parse AI response into structured format
- */
 export function parseAICommandResponse(aiResponse: string): AICommandResponse {
     try {
-        // Try to extract JSON from response
         const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
             return { isCommand: false };
@@ -100,22 +85,16 @@ export function parseAICommandResponse(aiResponse: string): AICommandResponse {
     }
 }
 
-/**
- * Send message to backend via VSCode API
- */
 function sendMessageToBackend(message: any): Promise<any> {
     return new Promise((resolve, reject) => {
-        // Get vscode API
         const vscode = (window as any).vscode;
         if (!vscode) {
             reject(new Error('VSCode API not available'));
             return;
         }
 
-        // Create unique message ID
         const messageId = `cmd-analysis-${Date.now()}`;
 
-        // Set up one-time listener for response
         const listener = (event: MessageEvent) => {
             const response = event.data;
             if (response.type === 'commandAnalysisResponse' && response.messageId === messageId) {
@@ -126,13 +105,11 @@ function sendMessageToBackend(message: any): Promise<any> {
 
         window.addEventListener('message', listener);
 
-        // Send message with ID
         vscode.postMessage({
             ...message,
             messageId
         });
 
-        // Timeout after 10 seconds
         setTimeout(() => {
             window.removeEventListener('message', listener);
             reject(new Error('Command analysis timeout'));
@@ -140,9 +117,6 @@ function sendMessageToBackend(message: any): Promise<any> {
     });
 }
 
-/**
- * Detect platform from navigator
- */
 export function detectPlatform(): 'windows' | 'macos' | 'linux' {
     if (typeof navigator !== 'undefined') {
         const platform = navigator.platform.toLowerCase();
@@ -152,9 +126,6 @@ export function detectPlatform(): 'windows' | 'macos' | 'linux' {
     return 'linux';
 }
 
-/**
- * Build command string based on package manager
- */
 function buildCommand(packageManager: string, scriptName: string): string {
     switch (packageManager) {
         case 'npm':
@@ -164,14 +135,12 @@ function buildCommand(packageManager: string, scriptName: string): string {
             return `${packageManager} run ${scriptName}`;
 
         case 'pip':
-            // pip doesn't have "run" - scripts are usually in setup.py or pyproject.toml
             return `python -m ${scriptName}`;
 
         case 'poetry':
             return `poetry run ${scriptName}`;
 
         case 'cargo':
-            // cargo run for binaries, cargo build for building
             if (scriptName === 'build' || scriptName === 'test' || scriptName === 'check') {
                 return `cargo ${scriptName}`;
             }
@@ -188,21 +157,16 @@ function buildCommand(packageManager: string, scriptName: string): string {
     }
 }
 
-/**
- * Pattern-based command detection (fallback when AI fails)
- */
 export function detectCommandByPattern(
     query: string,
     projectContext: any
 ): CommandIntent | null {
     const lowerQuery = query.toLowerCase().trim();
 
-    // Pattern: "run X" or "execute X" or "start X"
     const runMatch = lowerQuery.match(/^(run|execute|start|npm run|yarn|pnpm)\s+(.+)$/);
     if (runMatch) {
         const scriptName = runMatch[2].trim();
 
-        // Check if it's a known script from package.json
         if (projectContext.scripts && projectContext.scripts[scriptName]) {
             return {
                 type: 'script',
@@ -214,7 +178,6 @@ export function detectCommandByPattern(
             };
         }
 
-        // Common build commands
         if (['build', 'dev', 'start', 'test', 'lint', 'format'].includes(scriptName)) {
             return {
                 type: 'script',
@@ -227,7 +190,6 @@ export function detectCommandByPattern(
         }
     }
 
-    // Pattern: "build X and Y" or "run X and Y build"
     const multiCommandMatch = lowerQuery.match(/(?:run|build|execute)\s+.*(?:and|,).*(?:build|vsix|package)/);
     if (multiCommandMatch) {
         const commands: string[] = [];
@@ -265,7 +227,6 @@ export function detectCommandByPattern(
         }
     }
 
-    // Pattern: "install X" or "add X"
     if (lowerQuery.match(/^(install|add)\s+/)) {
         const packageName = lowerQuery.replace(/^(install|add)\s+/, '');
         const pm = projectContext.packageManager || 'npm';
@@ -306,7 +267,6 @@ export function detectCommandByPattern(
         };
     }
 
-    // Pattern: "delete X" or "remove X"
     if (lowerQuery.match(/^(delete|remove|rm)\s+/)) {
         return {
             type: 'remove',

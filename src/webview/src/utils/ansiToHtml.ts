@@ -1,47 +1,33 @@
-/**
- * ANSI escape code utilities
- * Convert ANSI color codes to HTML formatting
- */
 
-// ANSI color code regex
+
 const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
 
-// ANSI to HTML color mapping
 const ANSI_COLORS: Record<string, string> = {
-    // Reset
     '0': 'reset',
 
-    // Regular colors
-    '30': '#000000', // Black
-    '31': '#ef4444', // Red
-    '32': '#22c55e', // Green
-    '33': '#eab308', // Yellow
-    '34': '#3b82f6', // Blue
-    '35': '#a855f7', // Magenta
-    '36': '#06b6d4', // Cyan
-    '37': '#d1d5db', // White
+    '30': '#000000', 
+    '31': '#ef4444', 
+    '32': '#22c55e', 
+    '33': '#eab308', 
+    '34': '#3b82f6', 
+    '35': '#a855f7', 
+    '36': '#06b6d4', 
+    '37': '#d1d5db', 
 
-    // Bright colors
-    '90': '#6b7280', // Bright Black (Gray)
-    '91': '#f87171', // Bright Red
-    '92': '#4ade80', // Bright Green
-    '93': '#fbbf24', // Bright Yellow
-    '94': '#60a5fa', // Bright Blue
-    '95': '#c084fc', // Bright Magenta
-    '96': '#22d3ee', // Bright Cyan
-    '97': '#f3f4f6', // Bright White
+    '90': '#6b7280', 
+    '91': '#f87171', 
+    '92': '#4ade80', 
+    '93': '#fbbf24', 
+    '94': '#60a5fa', 
+    '95': '#c084fc', 
+    '96': '#22d3ee', 
+    '97': '#f3f4f6', 
 };
 
-/**
- * Strip all ANSI escape codes from a string
- */
 export function stripAnsi(text: string): string {
     return text.replace(ANSI_REGEX, '');
 }
 
-/**
- * Convert ANSI escape codes to HTML with inline styles
- */
 export function ansiToHtml(text: string): string {
     let result = '';
     let lastIndex = 0;
@@ -51,25 +37,20 @@ export function ansiToHtml(text: string): string {
     const matches = text.matchAll(/\x1b\[([0-9;]*)m/g);
 
     for (const match of matches) {
-        // Add text before this escape code
         const textBefore = text.slice(lastIndex, match.index);
         if (textBefore) {
             result += formatText(textBefore, currentColor, isBold);
         }
 
-        // Parse escape code
         const codes = match[1].split(';').filter(c => c);
 
         for (const code of codes) {
             if (code === '0') {
-                // Reset
                 currentColor = '';
                 isBold = false;
             } else if (code === '1') {
-                // Bold
                 isBold = true;
             } else if (ANSI_COLORS[code]) {
-                // Color code
                 currentColor = ANSI_COLORS[code];
             }
         }
@@ -77,7 +58,6 @@ export function ansiToHtml(text: string): string {
         lastIndex = (match.index || 0) + match[0].length;
     }
 
-    // Add remaining text
     const remainingText = text.slice(lastIndex);
     if (remainingText) {
         result += formatText(remainingText, currentColor, isBold);
@@ -86,9 +66,6 @@ export function ansiToHtml(text: string): string {
     return result || text;
 }
 
-/**
- * Format text with color and bold styling
- */
 function formatText(text: string, color: string, bold: boolean): string {
     if (!color && !bold) {
         return escapeHtml(text);
@@ -108,9 +85,6 @@ function formatText(text: string, color: string, bold: boolean): string {
     return `<span${styleAttr}>${escapeHtml(text)}</span>`;
 }
 
-/**
- * Escape HTML special characters
- */
 function escapeHtml(text: string): string {
     return text
         .replace(/&/g, '&amp;')
@@ -120,9 +94,6 @@ function escapeHtml(text: string): string {
         .replace(/'/g, '&#039;');
 }
 
-/**
- * Check if text contains ANSI codes
- */
 export function hasAnsiCodes(text: string): boolean {
     return ANSI_REGEX.test(text);
 }
