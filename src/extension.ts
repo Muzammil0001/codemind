@@ -22,7 +22,7 @@ let permissionEngine: PermissionEngine;
 
 export async function activate(context: vscode.ExtensionContext) {
     logger.info('CodeMind AI extension activating...');
-
+    const runningTerminals = new Map<string, vscode.Terminal>();
     try {
         // Initialize core systems
         permissionEngine = new PermissionEngine(context);
