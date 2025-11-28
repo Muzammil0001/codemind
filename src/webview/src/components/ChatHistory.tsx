@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Message } from './Message';
 import { StatusIndicator } from './StatusIndicator';
-import { Brain, History, Plus } from 'lucide-react';
+import { Brain, History, Plus, Settings } from 'lucide-react';
 
 type AgentStatus = 'idle' | 'thinking' | 'planning' | 'running' | 'executing';
 
@@ -10,13 +10,15 @@ interface ChatHistoryProps {
     agentStatus: AgentStatus;
     onEdit: (index: number) => void;
     onHistoryClick?: () => void;
+    onSettingsClick?: () => void;
     onNewChat?: () => void;
 }
 
-export const ChatHistory: React.FC<ChatHistoryProps & { children?: React.ReactNode }> = ({ messages, agentStatus, onEdit, onHistoryClick, onNewChat, children }) => {
+export const ChatHistory: React.FC<ChatHistoryProps & { children?: React.ReactNode }> = ({ messages, agentStatus, onEdit, onHistoryClick, onSettingsClick, onNewChat, children }) => {
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        console.log("========>>messagesIds", messages.map((msg) => msg.commandId));
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, children]);
 
@@ -57,6 +59,13 @@ export const ChatHistory: React.FC<ChatHistoryProps & { children?: React.ReactNo
                                 title="Chat History"
                             >
                                 <History size={20} />
+                            </button>
+                            <button
+                                onClick={onSettingsClick}
+                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                                title="Settings"
+                            >
+                                <Settings size={20} />
                             </button>
                         </div>
                     </div>
