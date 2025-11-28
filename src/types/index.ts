@@ -164,6 +164,27 @@ export interface DependencyGraph {
     circularDependencies: string[][];
 }
 
+export interface FolderInfo {
+    name: string;
+    path: string;
+    type: 'frontend' | 'backend' | 'fullstack' | 'component' | 'api' | 'service' | 'util' | 'config' | 'test' | 'docs' | 'unknown';
+    language?: string;
+    indicators?: string[];
+    fileCount?: number;
+}
+
+export interface ProjectStructure {
+    root: string;
+    name: string;
+    type: 'monorepo' | 'single' | 'mixed' | 'unknown';
+    languages: string[];
+    folders: FolderInfo[];
+    frontendPaths: string[];
+    backendPaths: string[];
+    componentPaths: string[];
+    summary: string;
+}
+
 export interface ProjectBrainState {
     rootPath: string;
     fileCount: number;
@@ -171,6 +192,7 @@ export interface ProjectBrainState {
     languages: Map<string, number>;
     frameworks: DetectedFramework[];
     dependencyGraph: DependencyGraph;
+    projectStructure?: ProjectStructure;
     lastAnalyzed: number;
     analysisProgress: number;
 }

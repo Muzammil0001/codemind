@@ -20,7 +20,7 @@ export enum CommandRiskLevel {
 }
 
 export interface TerminalCommand {
-    
+
     id: string;
 
     command: string;
@@ -42,10 +42,11 @@ export interface TerminalCommand {
     pid?: number;
 
     riskLevel?: CommandRiskLevel;
+
+    hidden?: boolean;
 }
 
 export interface TerminalOutputLine {
-    
     content: string;
 
     type: 'stdout' | 'stderr';
@@ -98,7 +99,7 @@ export interface TerminalCompleteMessage extends TerminalMessage {
 }
 
 export interface CommandExecutionOptions {
-    
+
     cwd?: string;
 
     env?: Record<string, string>;
@@ -110,10 +111,12 @@ export interface CommandExecutionOptions {
     timeout?: number;
 
     id?: string;
+
+    hidden?: boolean;
 }
 
 export interface CommandExecutionResult {
-    
+
     success: boolean;
 
     commandId: string;

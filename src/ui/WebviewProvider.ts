@@ -48,7 +48,41 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
     this.sendStatus();
     this.sendActiveTasks();
+    this.loadLastSession();
     logger.info('WebviewProvider: Initial data sent');
+  }
+
+  private async loadLastSession() {
+    const filePath = this.getHistoryFilePath();
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const history = JSON.parse(content);
+        if (history.sessions && history.sessions.length > 0) {
+          // Load the most recent session
+          const lastSession = history.sessions[0];
+          if (this._view) {
+            // First, send the session data
+            this._view.webview.postMessage({
+              type: 'loadChat',
+              data: lastSession
+            });
+
+            // Then, make sure the frontend knows this is the current session
+            setTimeout(() => {
+              if (this._view) {
+                this._view.webview.postMessage({
+                  type: 'setCurrentSession',
+                  sessionId: lastSession.id
+                });
+              }
+            }, 100);
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to load last session', error as Error);
+      }
+    }
   }
 
   private _setWebviewMessageListener(webview: vscode.Webview) {
@@ -115,6 +149,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           break;
         case 'readFile':
           await this.handleReadFile(message.path);
+          break;
+        case 'openFile':
+          await this.handleOpenFile(message.path);
           break;
         case 'analyzeCommand':
           await this.handleAnalyzeCommand(message.data, message.messageId);
@@ -521,21 +558,30 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       const fileRef = match[1];
       const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (workspaceRoot) {
-        let filePath = `${workspaceRoot}/${fileRef}`;
+        let filePath = fileRef;
         let fileUri: vscode.Uri | null = null;
 
+        // Try resolving relative to workspace root first
+        const possiblePath = path.join(workspaceRoot, fileRef);
+
         try {
-          fileUri = vscode.Uri.file(filePath);
-          await vscode.workspace.fs.stat(fileUri);
-        } catch {
-          try {
+          if (fs.existsSync(possiblePath)) {
+            filePath = possiblePath;
+            fileUri = vscode.Uri.file(possiblePath);
+          } else if (fs.existsSync(fileRef)) {
+            // Try as absolute path
             filePath = fileRef;
             fileUri = vscode.Uri.file(fileRef);
-            await vscode.workspace.fs.stat(fileUri);
-          } catch {
-            logger.info(`File not found: ${fileRef}`);
-            fileUri = null;
+          } else {
+            // Try finding file in workspace if path is partial
+            const files = await vscode.workspace.findFiles(`**/${fileRef}`, '**/node_modules/**', 1);
+            if (files.length > 0) {
+              fileUri = files[0];
+              filePath = fileUri.fsPath;
+            }
           }
+        } catch (e) {
+          logger.info(`Error resolving file path: ${fileRef}`, e as Error);
         }
 
         if (fileUri) {
@@ -762,6 +808,42 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         path: filePath,
         error: (error as Error).message
       });
+    }
+  }
+
+  private async handleOpenFile(filePath: string): Promise<void> {
+    try {
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) {
+        vscode.window.showErrorMessage('No workspace open');
+        return;
+      }
+
+      // Resolve the file path relative to workspace root
+      const fullPath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(workspaceRoot, filePath);
+
+      // Security check: ensure path is within workspace
+      if (!fullPath.startsWith(workspaceRoot)) {
+        vscode.window.showErrorMessage('Cannot open file outside workspace');
+        return;
+      }
+
+      if (fs.existsSync(fullPath)) {
+        const fileUri = vscode.Uri.file(fullPath);
+        const document = await vscode.workspace.openTextDocument(fileUri);
+        await vscode.window.showTextDocument(document, {
+          preview: false,
+          viewColumn: vscode.ViewColumn.One
+        });
+        logger.info(`Opened file: ${fullPath}`);
+      } else {
+        vscode.window.showErrorMessage(`File not found: ${filePath}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to open file ${filePath}`, error as Error);
+      vscode.window.showErrorMessage(`Failed to open file: ${(error as Error).message}`);
     }
   }
 

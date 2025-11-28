@@ -1,0 +1,14 @@
+{
+  "name": "your-project",
+  "version": "1.0.0",
+  "description": "Example package.json demonstrating a dedicated frontend build script",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:webview": "cd webview && npm install && npm run build",
+    "build:frontend": "npm run build:webview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

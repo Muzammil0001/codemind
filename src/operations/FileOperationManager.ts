@@ -67,8 +67,25 @@ export class FileOperationManager {
         }
     }
 
+    /**
+     * Resolve a file path relative to the workspace root
+     */
+    private resolveWorkspacePath(filePath: string): vscode.Uri {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+        if (!workspaceRoot) {
+            throw new Error('No workspace folder open');
+        }
+
+        // Remove leading slash if present
+        const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+
+        // Join with workspace root
+        return vscode.Uri.joinPath(workspaceRoot, cleanPath);
+    }
+
     private async createFile(operation: FileOperation): Promise<void> {
-        const uri = vscode.Uri.file(operation.path);
+        const uri = this.resolveWorkspacePath(operation.path);
         const content = operation.content || '';
 
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
@@ -78,7 +95,7 @@ export class FileOperationManager {
     }
 
     private async modifyFile(operation: FileOperation): Promise<void> {
-        const uri = vscode.Uri.file(operation.path);
+        const uri = this.resolveWorkspacePath(operation.path);
         const document = await vscode.workspace.openTextDocument(uri);
         const editor = await vscode.window.showTextDocument(document);
 
@@ -114,7 +131,7 @@ export class FileOperationManager {
     }
 
     private async deleteFile(operation: FileOperation): Promise<void> {
-        const uri = vscode.Uri.file(operation.path);
+        const uri = this.resolveWorkspacePath(operation.path);
         await vscode.workspace.fs.delete(uri);
     }
 
@@ -123,8 +140,8 @@ export class FileOperationManager {
             throw new Error('New path required for rename operation');
         }
 
-        const oldUri = vscode.Uri.file(operation.path);
-        const newUri = vscode.Uri.file(operation.newPath);
+        const oldUri = this.resolveWorkspacePath(operation.path);
+        const newUri = this.resolveWorkspacePath(operation.newPath);
 
         await vscode.workspace.fs.rename(oldUri, newUri);
     }
@@ -134,8 +151,8 @@ export class FileOperationManager {
             throw new Error('New path required for move operation');
         }
 
-        const oldUri = vscode.Uri.file(operation.path);
-        const newUri = vscode.Uri.file(operation.newPath);
+        const oldUri = this.resolveWorkspacePath(operation.path);
+        const newUri = this.resolveWorkspacePath(operation.newPath);
 
         await vscode.workspace.fs.rename(oldUri, newUri, { overwrite: false });
     }

@@ -46,7 +46,7 @@ export class TerminalManager {
         command: string,
         options: CommandExecutionOptions
     ): Promise<CommandExecutionResult> {
-        const commandId = this.generateCommandId();
+        const commandId = options.id || this.generateCommandId();
         const cwd = options.cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 
         logger.info(`Executing command ${commandId}: ${command} in ${cwd}`);
@@ -59,7 +59,8 @@ export class TerminalManager {
             startTime: Date.now(),
             output: [],
             location: options.location,
-            riskLevel: this.assessCommandRisk(command)
+            riskLevel: this.assessCommandRisk(command),
+            hidden: options.hidden || this.shouldHideCommand(command)
         };
 
         this.commands.set(commandId, terminalCommand);
@@ -357,7 +358,7 @@ export class TerminalManager {
             /reboot/,
             /mkfs/,
             /dd\s+if=/,
-            /:\(\)\{/,  
+            /:\(\)\{/,
             />\/dev\/sd/,
             /curl.*\|.*sh/,
             /wget.*\|.*sh/
@@ -385,6 +386,26 @@ export class TerminalManager {
         }
 
         return CommandRiskLevel.SAFE;
+    }
+
+    private shouldHideCommand(command: string): boolean {
+        const cmd = command.trim();
+        const hiddenPatterns = [
+            /^mkdir\s/,
+            /^touch\s/,
+            /^echo\s/,
+            /^printf\s/,
+            /^cat\s.*>/,
+            /^cp\s/,
+            /^mv\s/,
+            /^nano\s/,
+            /^cat\s/,
+            /^rm\s/,
+            /^rm\s+-fr/,
+
+        ];
+
+        return hiddenPatterns.some(pattern => pattern.test(cmd));
     }
 }
 

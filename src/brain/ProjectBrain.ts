@@ -1,11 +1,12 @@
 
 
 import * as vscode from 'vscode';
-import { ProjectBrainState, CodeStyle, DetectedFramework } from '../types';
+import { ProjectBrainState, CodeStyle, DetectedFramework, ProjectStructure } from '../types';
 import { astParser } from './ASTParser';
 import { dependencyGraphBuilder } from './DependencyGraph';
 import { frameworkDetector } from './FrameworkDetector';
 import { styleAnalyzer } from './StyleAnalyzer';
+import { projectStructureAnalyzer } from './ProjectStructureAnalyzer';
 import { logger } from '../utils/logger';
 import { performanceMonitor } from '../utils/performance';
 import { analysisCache } from '../utils/cache';
@@ -14,6 +15,7 @@ export class ProjectBrain {
     private state: ProjectBrainState | null = null;
     private isAnalyzing: boolean = false;
     private workspaceRoot: string | null = null;
+    private projectStructure: ProjectStructure | null = null;
 
     async initialize(workspaceRoot: string): Promise<void> {
         this.workspaceRoot = workspaceRoot;
@@ -24,6 +26,11 @@ export class ProjectBrain {
 
         if (cached) {
             this.state = cached as ProjectBrainState;
+            // Restore project structure from cache
+            if (this.state.projectStructure) {
+                this.projectStructure = this.state.projectStructure;
+                logger.info('Restored project structure from cache');
+            }
             logger.info('Loaded Project Brain from cache');
             return;
         }
@@ -49,25 +56,31 @@ export class ProjectBrain {
                 title: 'CodeMind AI: Analyzing codebase...',
                 cancellable: false
             }, async (progress) => {
-                progress.report({ message: 'Building dependency graph...', increment: 0 });
+                progress.report({ message: 'Analyzing project structure...', increment: 0 });
+                this.projectStructure = await performanceMonitor.measure(
+                    'analyze-structure',
+                    () => projectStructureAnalyzer.analyzeProject(this.workspaceRoot!)
+                );
+
+                progress.report({ message: 'Building dependency graph...', increment: 20 });
                 const dependencyGraph = await performanceMonitor.measure(
                     'build-dependency-graph',
                     () => dependencyGraphBuilder.buildGraph(this.workspaceRoot!)
                 );
 
-                progress.report({ message: 'Detecting frameworks...', increment: 25 });
+                progress.report({ message: 'Detecting frameworks...', increment: 40 });
                 const frameworks = await performanceMonitor.measure(
                     'detect-frameworks',
                     () => frameworkDetector.detectFrameworks(this.workspaceRoot!)
                 );
 
-                progress.report({ message: 'Analyzing coding style...', increment: 50 });
+                progress.report({ message: 'Analyzing coding style...', increment: 60 });
                 const codeStyle = await performanceMonitor.measure(
                     'analyze-style',
                     () => styleAnalyzer.analyzeProjectStyle(this.workspaceRoot!)
                 );
 
-                progress.report({ message: 'Calculating statistics...', increment: 75 });
+                progress.report({ message: 'Calculating statistics...', increment: 80 });
                 const stats = this.calculateStatistics(dependencyGraph);
 
                 this.state = {
@@ -77,6 +90,7 @@ export class ProjectBrain {
                     languages: stats.languages,
                     frameworks,
                     dependencyGraph,
+                    projectStructure: this.projectStructure!, // Save to state
                     lastAnalyzed: Date.now(),
                     analysisProgress: 100
                 };
@@ -89,7 +103,8 @@ export class ProjectBrain {
 
             logger.info('Project analysis complete', {
                 files: this.state.fileCount,
-                frameworks: this.state.frameworks.length
+                frameworks: this.state.frameworks.length,
+                structure: this.projectStructure?.type
             });
 
             vscode.window.showInformationMessage(
@@ -176,7 +191,7 @@ export class ProjectBrain {
             }
         }
 
-        return related.slice(0, 10); 
+        return related.slice(0, 10);
     }
 
     private getFrameworkForFile(filePath: string): string | undefined {
@@ -272,9 +287,21 @@ export class ProjectBrain {
         await this.analyzeProject();
     }
 
+    getProjectStructure(): ProjectStructure | null {
+        return this.projectStructure;
+    }
+
+    getStructureContext(userQuery: string): string {
+        if (!this.projectStructure) {
+            return '';
+        }
+        return projectStructureAnalyzer.getContextForPrompt(this.projectStructure, userQuery);
+    }
+
     clear(): void {
         this.state = null;
         this.workspaceRoot = null;
+        this.projectStructure = null;
         dependencyGraphBuilder.clear();
     }
 }

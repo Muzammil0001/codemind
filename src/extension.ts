@@ -331,6 +331,7 @@ function showWelcomeMessage(context: vscode.ExtensionContext) {
             'Open Settings'
         ).then(selection => {
             if (selection === 'Open Settings') {
+                vscode.commands.executeCommand('workbench.view.extension.codemind-sidebar');
                 vscode.commands.executeCommand('workbench.action.openSettings', 'codemind');
             }
         });

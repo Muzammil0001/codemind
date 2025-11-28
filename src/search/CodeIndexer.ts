@@ -61,11 +61,33 @@ export class CodeIndexer {
                 return;
             }
 
+            // Index full file content
             this.index.add(relativePath, content);
             this.fileHashes.set(relativePath, hash);
 
-            // TODO: Extract symbols and index them separately
-            // This would use AST parsing to find functions/classes
+            // Extract and index symbols using AST
+            try {
+                const { astParser } = await import('../brain/ASTParser');
+                const parsed = await astParser.parseFile(uri.fsPath);
+
+                // Index functions
+                for (const func of parsed.functions) {
+                    const symbolId = `${relativePath}::${func.name}`;
+                    const symbolContent = `${func.name} function ${func.parameters.map(p => p.name).join(' ')}`;
+                    this.index.add(symbolId, symbolContent);
+                }
+
+                // Index classes
+                for (const cls of parsed.classes) {
+                    const symbolId = `${relativePath}::${cls.name}`;
+                    const symbolContent = `${cls.name} class ${cls.methods.map(m => m.name).join(' ')}`;
+                    this.index.add(symbolId, symbolContent);
+                }
+
+                logger.info(`Indexed ${parsed.functions.length} functions and ${parsed.classes.length} classes from ${relativePath}`);
+            } catch (error) {
+                logger.warn(`AST parsing failed for ${relativePath}, using content-only indexing`);
+            }
 
         } catch (error) {
             logger.error(`Failed to index file ${uri.fsPath}`, error as Error);

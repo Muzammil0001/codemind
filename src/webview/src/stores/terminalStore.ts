@@ -17,6 +17,7 @@ export interface TerminalCommand {
     output: TerminalOutputLine[];
     location: 'chat' | 'main';
     pid?: number;
+    hidden?: boolean;
 }
 
 interface TerminalState {

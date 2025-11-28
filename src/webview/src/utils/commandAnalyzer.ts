@@ -113,7 +113,7 @@ function sendMessageToBackend(message: any): Promise<any> {
         setTimeout(() => {
             window.removeEventListener('message', listener);
             reject(new Error('Command analysis timeout'));
-        }, 10000);
+        }, 30000);
     });
 }
 

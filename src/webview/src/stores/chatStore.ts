@@ -6,6 +6,9 @@ export interface Message {
     content: string;
     timestamp: number;
     commandId?: string;
+    steps?: any[];
+    thoughtProcess?: string;
+    isThinking?: boolean;
     context?: {
         files?: string[];
         selection?: string;
@@ -16,8 +19,8 @@ export interface ChatSession {
     id: string;
     title: string;
     messages: Message[];
-    timestamp: number; 
-    preview: string;   
+    timestamp: number;
+    preview: string;
     updatedAt: number;
 }
 
@@ -30,6 +33,7 @@ interface ChatState {
 
     addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string;
     updateMessageCommandId: (messageId: string, commandId: string) => void;
+    updateMessageSteps: (messageId: string, steps: any[], thoughtProcess?: string, isThinking?: boolean) => void;
     setMessages: (messages: Message[]) => void;
     sliceMessages: (index: number) => void;
     setSessions: (sessions: ChatSession[]) => void;
@@ -86,6 +90,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const updatedMessages = state.messages.map(msg =>
                 msg.id === messageId
                     ? { ...msg, commandId }
+                    : msg
+            );
+
+            let updatedSessions = state.sessions;
+            if (state.currentSessionId) {
+                updatedSessions = state.sessions.map(s =>
+                    s.id === state.currentSessionId
+                        ? { ...s, messages: updatedMessages }
+                        : s
+                );
+            }
+
+            return {
+                messages: updatedMessages,
+                sessions: updatedSessions
+            };
+        });
+    },
+
+    updateMessageSteps: (messageId: string, steps: any[], thoughtProcess?: string, isThinking?: boolean) => {
+        set((state) => {
+            const updatedMessages = state.messages.map(msg =>
+                msg.id === messageId
+                    ? { ...msg, steps, thoughtProcess, isThinking }
                     : msg
             );
 

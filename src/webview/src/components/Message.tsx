@@ -6,15 +6,20 @@ import { markdownComponents } from './MarkdownComponents';
 import { useTerminal } from '../hooks/useTerminal';
 import { TerminalOutput } from './TerminalOutput';
 import { useVSCode } from '../hooks/useVSCode';
+import { ExecutionSteps, type Step } from './ExecutionSteps';
+
 interface MessageProps {
     role: 'user' | 'ai';
     content: string;
     messageIndex?: number;
     onEdit?: (index: number) => void;
     commandId?: string;
+    steps?: Step[];
+    thoughtProcess?: string;
+    isThinking?: boolean;
 }
 
-export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, onEdit, commandId }) => {
+export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, onEdit, commandId, steps, thoughtProcess, isThinking }) => {
     const { stopCommand } = useTerminal();
     const { postMessage } = useVSCode();
     const isUser = role === 'user';
@@ -58,6 +63,13 @@ export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, o
                             </div>
                         ) : (
                             <div className="prose prose-invert prose-sm max-w-none overflow-hidden">
+                                {(steps || thoughtProcess) && (
+                                    <ExecutionSteps
+                                        steps={steps || []}
+                                        thoughtProcess={thoughtProcess}
+                                        isThinking={isThinking}
+                                    />
+                                )}
                                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                     {content}
                                 </ReactMarkdown>

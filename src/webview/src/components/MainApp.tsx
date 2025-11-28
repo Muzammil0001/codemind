@@ -26,7 +26,7 @@ import {
     parseGoMod,
     mergeProjectScripts
 } from '../utils/projectParsers';
-import { analyzeCommandWithAI, detectPlatform, detectCommandByPattern } from '../utils/commandAnalyzer';
+import { detectCommandByPattern } from '../utils/commandAnalyzer';
 import { buildContextualPrompt } from '../utils/contextBuilder';
 import {
     GENERATE_SESSION_ID,
@@ -133,6 +133,7 @@ export const MainApp = () => {
                 case 'loadChat':
                     if (message.data) {
                         setSessionId(message.data.id);
+                        setCurrentSessionId(message.data.id);  // Make sure to set current session
                         setMessages(
                             (message.data.messages || []).map((msg: Message) => ({
                                 ...msg,
@@ -140,6 +141,12 @@ export const MainApp = () => {
                             }))
                         );
                         setShowHistory(false);
+                    }
+                    break;
+
+                case 'setCurrentSession':
+                    if (message.sessionId) {
+                        setCurrentSessionId(message.sessionId);
                     }
                     break;
 
@@ -282,53 +289,83 @@ export const MainApp = () => {
 
 
     const handleSend = async (text: string, files: AttachedItem[]) => {
+        addMessage({ role: 'user', content: text });
+        setLoading(true);
+        setAgentStatus('thinking');
+
         const projectContext = detectProjectContext(availableFiles, projectScripts);
-        const platform = detectPlatform();
 
-        try {
-            const commandIntent = await analyzeCommandWithAI({
-                userQuery: text,
-                projectContext,
-                availableFiles,
-                platform
-            });
+        // Disable AI command analysis for now - it's causing timeouts
+        // Try pattern-based detection first
+        // try {
+        //     const commandIntent = await analyzeCommandWithAI({
+        //         userQuery: text,
+        //         projectContext,
+        //         availableFiles,
+        //         platform
+        //     });
 
-            if (commandIntent) {
-                if (commandIntent.requiresConfirmation) {
-                    setPendingCommand(commandIntent);
-                } else {
-                    const commandId = executeCommand(commandIntent.command);
-                    addMessage({ role: 'user', content: text });
-                    const messageId = addMessage({ role: 'ai', content: `Executing command: \`${commandIntent.command}\``, commandId });
+        //     if (commandIntent) {
+        //         if (commandIntent.requiresConfirmation) {
+        //             setPendingCommand(commandIntent);
+        //             setLoading(false);
+        //             setAgentStatus('idle');
+        //         } else {
+        //             const commandId = executeCommand(commandIntent.command);
+        //             // User message already added
+        //             const messageId = addMessage({
+        //                 role: 'ai',
+        //                 content: '',
+        //                 commandId,
+        //                 steps: [{
+        //                     id: 'cmd-exec',
+        //                     title: 'Executing Terminal Command',
+        //                     description: commandIntent.command,
+        //                     status: 'running'
+        //                 }]
+        //             });
 
-                    lastCommandMessageRef.current = { messageId, commandId };
-                }
-                return;
-            }
-        } catch (error) {
-            console.error('❌ AI command analysis failed:', error);
-        }
+        //             lastCommandMessageRef.current = { messageId, commandId };
+        //             setLoading(false);
+        //             setAgentStatus('idle');
+        //         }
+        //         return;
+        //     }
+        // } catch (error) {
+        //     console.error('❌ AI command analysis failed:', error);
+        // }
 
         const patternCommandIntent = detectCommandByPattern(text, projectContext);
 
         if (patternCommandIntent) {
             if (patternCommandIntent.requiresConfirmation) {
                 setPendingCommand(patternCommandIntent);
+                setLoading(false);
+                setAgentStatus('idle');
             } else {
                 const commandId = executeCommand(patternCommandIntent.command);
-                addMessage({ role: 'user', content: text });
-                const messageId = addMessage({ role: 'ai', content: `Executing command: \`${patternCommandIntent.command}\``, commandId });
+
+                const messageId = addMessage({
+                    role: 'ai',
+                    content: '',
+                    commandId,
+                    steps: [{
+                        id: 'cmd-exec',
+                        title: 'Executing Terminal Command',
+                        description: patternCommandIntent.command,
+                        status: 'running'
+                    }]
+                });
 
                 lastCommandMessageRef.current = { messageId, commandId };
+                setLoading(false);
+                setAgentStatus('idle');
             }
             return;
         }
 
+        // If not a command, send to AI for normal processing
         const contextualPrompt = buildContextualPrompt(text, messages, projectScripts);
-
-        addMessage({ role: 'user', content: text });
-        setLoading(true);
-        setAgentStatus('thinking');
 
         postMessage({
             type: 'executeQuery',
@@ -401,7 +438,17 @@ export const MainApp = () => {
         if (pendingCommand) {
             const commandId = executeCommand(pendingCommand.command);
             addMessage({ role: 'user', content: pendingCommand.originalMessage });
-            const messageId = addMessage({ role: 'ai', content: `Executing command: \`${pendingCommand.command}\``, commandId });
+            const messageId = addMessage({
+                role: 'ai',
+                content: '',
+                commandId,
+                steps: [{
+                    id: 'cmd-exec',
+                    title: 'Executing Terminal Command',
+                    description: pendingCommand.command,
+                    status: 'running'
+                }]
+            });
 
             lastCommandMessageRef.current = { messageId, commandId };
             setPendingCommand(null);

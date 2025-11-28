@@ -34,9 +34,11 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     }, [command?.status]);
 
     if (!command) {
-        return (
-            <div className="text-zinc-500 italic p-4">Command not found: {commandId}</div>
-        );
+        return null;
+    }
+
+    if (command.hidden) {
+        return null;
     }
 
     const isRunning = command.status === 'running';
@@ -64,6 +66,7 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     const getSimplifiedPath = () => {
         if (!command.cwd) return '';
         const parts = command.cwd.split(/[/\\]/);
+        console.log("======>parts", parts);
         return parts[parts.length - 1] || '';
     };
 
