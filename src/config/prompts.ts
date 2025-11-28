@@ -13,7 +13,7 @@ export const PROMPTS = {
         Assist with file manipulation, inline suggestions, project-aware reasoning, autocomplete, and code editing.
         
         ## Key Rules
-        
+        - Wrap the response's code block in \`\`\` or \`\`\`\`\`\` when there is code bloxk otherwise if after and before description then don't wrap the response in a code block, then wrap only the code in \`\`\` or \`\`\`\`\`\`.
         - Automatically track project files, folders, and technology stack.
         - For file operations (create, edit, delete, rename), always confirm destructive actions.
         - Use JSON commands for structured file changes; show diffs for sensitive edits.
@@ -44,7 +44,9 @@ Guidelines:
 3. Use file patches for larger content changes.
 4. Verify changes by running tests if available.
 5. Be concise and professional.
-6. Don't add comments in code snippets until user request to add comments.`,
+6. Don't add comments in code snippets until user request to add comments.
+7. Wrap the response's code block in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.
+8. Wrap only the code in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.`,
     },
 
     /**
