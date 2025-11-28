@@ -19,6 +19,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'codemind.panel';
   private _view?: vscode.WebviewView;
   private _activeQueryController?: AbortController;
+  private runningTerminals: Map<string, vscode.Terminal> = new Map();
 
   constructor(private readonly _extensionUri: vscode.Uri) {
     // Set up terminal manager callbacks
@@ -104,8 +105,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         case 'stopQuery':
           await this.handleStopQuery();
           break;
+        case 'runCommand':
+          // Handle runCommand from frontend (useTerminal hook)
+          await this.handleExecuteTerminalCommand(message.command, message.cwd, 'chat', message.commandId);
+          break;
         case 'executeTerminalCommand':
-          await this.handleExecuteTerminalCommand(message.command, message.cwd, message.location);
+          await this.handleExecuteTerminalCommand(message.command, message.cwd, message.location, message.commandId);
           break;
         case 'stopTerminalCommand':
           await this.handleStopTerminalCommand(message.commandId);
@@ -118,6 +123,15 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           break;
         case 'analyzeCommand':
           await this.handleAnalyzeCommand(message.data, message.messageId);
+          break;
+        case 'getSettings':
+          await this.handleGetSettings();
+          break;
+        case 'updateSettings':
+          await this.handleUpdateSettings(message.settings);
+          break;
+        case 'terminalRelocate':
+          await this.handleTerminalRelocate(message.commandId);
           break;
       }
     });
@@ -665,9 +679,10 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
   private async handleExecuteTerminalCommand(
     command: string,
     cwd?: string,
-    location?: string
+    location?: string,
+    commandId?: string
   ): Promise<void> {
-    logger.info(`Executing terminal command: ${command}`);
+    logger.info(`Executing terminal command: ${command} (ID: ${commandId})`);
 
     try {
       const termLocation = location === 'main' ? TerminalLocation.MAIN : TerminalLocation.CHAT;
@@ -675,7 +690,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       const result = await terminalManager.executeCommand(command, {
         cwd: cwd || workspaceRoot,
-        location: termLocation
+        location: termLocation,
+        id: commandId
       });
 
       if (this._view) {
@@ -814,11 +830,13 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       }
 
       // Send response back to webview
-      this._view.webview.postMessage({
-        type: 'commandAnalysisResponse',
-        messageId,
-        data: analysisResult
-      });
+      if (this._view) {
+        this._view.webview.postMessage({
+          type: 'commandAnalysisResponse',
+          messageId,
+          data: analysisResult
+        });
+      }
 
     } catch (error) {
       logger.error('AI command analysis failed', error as Error);
@@ -829,6 +847,169 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           type: 'commandAnalysisResponse',
           messageId,
           data: { isCommand: false, error: (error as Error).message }
+        });
+      }
+    }
+  }
+
+  /**
+   * Handle get settings request
+   */
+  private async handleGetSettings(): Promise<void> {
+    if (!this._view) return;
+
+    const config = vscode.workspace.getConfiguration('codemind');
+
+    const settings = {
+      primaryModel: config.get('primaryModel', 'gemini-pro'),
+      turboMode: config.get('turboMode', false),
+      enableAutoFallback: config.get('enableAutoFallback', true),
+      cacheEmbeddings: config.get('cacheEmbeddings', true),
+      enableLocalModels: config.get('enableLocalModels', false),
+      apiKeys: {
+        gemini: config.get('geminiApiKey', ''),
+        openai: config.get('openaiApiKey', ''),
+        anthropic: config.get('anthropicApiKey', ''),
+        deepseek: config.get('deepseekApiKey', ''),
+        groq: config.get('groqApiKey', '')
+      }
+    };
+
+    this._view.webview.postMessage({
+      type: 'currentSettings',
+      data: settings
+    });
+  }
+
+  /**
+   * Handle update settings request
+   */
+  private async handleUpdateSettings(settings: any): Promise<void> {
+    if (!this._view) return;
+
+    const config = vscode.workspace.getConfiguration('codemind');
+
+    try {
+      // Update all settings
+      await config.update('primaryModel', settings.primaryModel, vscode.ConfigurationTarget.Global);
+      await config.update('turboMode', settings.turboMode, vscode.ConfigurationTarget.Global);
+      await config.update('enableAutoFallback', settings.enableAutoFallback, vscode.ConfigurationTarget.Global);
+      await config.update('cacheEmbeddings', settings.cacheEmbeddings, vscode.ConfigurationTarget.Global);
+      await config.update('enableLocalModels', settings.enableLocalModels, vscode.ConfigurationTarget.Global);
+
+      // Update API keys
+      if (settings.apiKeys) {
+        await config.update('geminiApiKey', settings.apiKeys.gemini || '', vscode.ConfigurationTarget.Global);
+        await config.update('openaiApiKey', settings.apiKeys.openai || '', vscode.ConfigurationTarget.Global);
+        await config.update('anthropicApiKey', settings.apiKeys.anthropic || '', vscode.ConfigurationTarget.Global);
+        await config.update('deepseekApiKey', settings.apiKeys.deepseek || '', vscode.ConfigurationTarget.Global);
+        await config.update('groqApiKey', settings.apiKeys.groq || '', vscode.ConfigurationTarget.Global);
+      }
+
+      vscode.window.showInformationMessage('CodeMind settings saved successfully!');
+
+      // Send updated settings back
+      await this.handleGetSettings();
+    } catch (error) {
+      logger.error('Failed to save settings', error as Error);
+      vscode.window.showErrorMessage('Failed to save settings: ' + (error as Error).message);
+    }
+  }
+
+  /**
+   * Handle terminal relocation from chat to main panel
+   */
+  private async handleTerminalRelocate(commandId: string): Promise<void> {
+    logger.info(`Relocating terminal for command: ${commandId}`);
+
+    try {
+      // Check if terminal already exists
+      const existingTerminal = this.runningTerminals.get(commandId);
+      if (existingTerminal && !existingTerminal.exitStatus) {
+        // Terminal already exists - just focus it
+        existingTerminal.show(true);
+        logger.info(`Focused existing terminal for command: ${commandId}`);
+        return;
+      }
+
+      // Get command details from terminal manager
+      const command = terminalManager.getCommand(commandId);
+      if (!command) {
+        logger.warn(`Command ${commandId} not found in terminal manager`);
+        vscode.window.showWarningMessage('Terminal command not found');
+        return;
+      }
+
+      // Get the running process
+      const process = terminalManager.getProcess(commandId);
+
+      if (process && !process.killed) {
+        // Create a new terminal and attach the existing process output
+        const terminal = vscode.window.createTerminal({
+          name: `CodeMind: ${command.command.substring(0, 30)}...`,
+          cwd: command.cwd
+        });
+
+        // Show the terminal
+        terminal.show(true);
+
+        // Store reference
+        this.runningTerminals.set(commandId, terminal);
+
+        // Send a message to show the command being run
+        terminal.sendText(`# Relocated from chat terminal`);
+        terminal.sendText(`# Command: ${command.command}`);
+        terminal.sendText(`# Working directory: ${command.cwd}`);
+        terminal.sendText(`# Note: This is a live view of the running process`);
+        terminal.sendText('');
+
+        logger.info(`Created new terminal for relocated command: ${commandId}`);
+
+        // Clean up when terminal closes
+        vscode.window.onDidCloseTerminal((closedTerminal) => {
+          if (closedTerminal === terminal) {
+            this.runningTerminals.delete(commandId);
+            logger.info(`Cleaned up terminal for command: ${commandId}`);
+          }
+        });
+      } else {
+        // Process not running or already completed - create new terminal and re-run
+        const terminal = vscode.window.createTerminal({
+          name: `CodeMind: ${command.command.substring(0, 30)}...`,
+          cwd: command.cwd
+        });
+
+        terminal.show(true);
+        terminal.sendText(command.command);
+
+        this.runningTerminals.set(commandId, terminal);
+        logger.info(`Re-ran command in new terminal: ${commandId}`);
+
+        vscode.window.onDidCloseTerminal((closedTerminal) => {
+          if (closedTerminal === terminal) {
+            this.runningTerminals.delete(commandId);
+          }
+        });
+      }
+
+      // Notify webview that relocation was successful
+      if (this._view) {
+        this._view.webview.postMessage({
+          type: 'terminalRelocated',
+          commandId,
+          success: true
+        });
+      }
+    } catch (error) {
+      logger.error(`Failed to relocate terminal for command ${commandId}`, error as Error);
+      vscode.window.showErrorMessage('Failed to relocate terminal: ' + (error as Error).message);
+
+      if (this._view) {
+        this._view.webview.postMessage({
+          type: 'terminalRelocated',
+          commandId,
+          success: false,
+          error: (error as Error).message
         });
       }
     }
