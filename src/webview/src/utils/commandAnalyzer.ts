@@ -151,3 +151,172 @@ export function detectPlatform(): 'windows' | 'macos' | 'linux' {
     }
     return 'linux';
 }
+
+/**
+ * Build command string based on package manager
+ */
+function buildCommand(packageManager: string, scriptName: string): string {
+    switch (packageManager) {
+        case 'npm':
+        case 'yarn':
+        case 'pnpm':
+        case 'bun':
+            return `${packageManager} run ${scriptName}`;
+
+        case 'pip':
+            // pip doesn't have "run" - scripts are usually in setup.py or pyproject.toml
+            return `python -m ${scriptName}`;
+
+        case 'poetry':
+            return `poetry run ${scriptName}`;
+
+        case 'cargo':
+            // cargo run for binaries, cargo build for building
+            if (scriptName === 'build' || scriptName === 'test' || scriptName === 'check') {
+                return `cargo ${scriptName}`;
+            }
+            return `cargo run --bin ${scriptName}`;
+
+        case 'go':
+            if (scriptName === 'build' || scriptName === 'test') {
+                return `go ${scriptName}`;
+            }
+            return `go run ${scriptName}`;
+
+        default:
+            return `${packageManager} run ${scriptName}`;
+    }
+}
+
+/**
+ * Pattern-based command detection (fallback when AI fails)
+ */
+export function detectCommandByPattern(
+    query: string,
+    projectContext: any
+): CommandIntent | null {
+    const lowerQuery = query.toLowerCase().trim();
+
+    // Pattern: "run X" or "execute X" or "start X"
+    const runMatch = lowerQuery.match(/^(run|execute|start|npm run|yarn|pnpm)\s+(.+)$/);
+    if (runMatch) {
+        const scriptName = runMatch[2].trim();
+
+        // Check if it's a known script from package.json
+        if (projectContext.scripts && projectContext.scripts[scriptName]) {
+            return {
+                type: 'script',
+                command: buildCommand(projectContext.packageManager, scriptName),
+                requiresConfirmation: false,
+                riskLevel: 'safe',
+                originalMessage: query,
+                confidence: 0.9
+            };
+        }
+
+        // Common build commands
+        if (['build', 'dev', 'start', 'test', 'lint', 'format'].includes(scriptName)) {
+            return {
+                type: 'script',
+                command: buildCommand(projectContext.packageManager, scriptName),
+                requiresConfirmation: false,
+                riskLevel: 'safe',
+                originalMessage: query,
+                confidence: 0.85
+            };
+        }
+    }
+
+    // Pattern: "build X and Y" or "run X and Y build"
+    const multiCommandMatch = lowerQuery.match(/(?:run|build|execute)\s+.*(?:and|,).*(?:build|vsix|package)/);
+    if (multiCommandMatch) {
+        const commands: string[] = [];
+
+        if (lowerQuery.includes('frontend') || lowerQuery.includes('webview')) {
+            if (projectContext.scripts?.['build:webview']) {
+                commands.push('build:webview');
+            }
+        }
+
+        if (lowerQuery.includes('backend') || lowerQuery.includes('extension')) {
+            if (projectContext.scripts?.['build:extension']) {
+                commands.push('build:extension');
+            }
+        }
+
+        if (lowerQuery.includes('vsix') || lowerQuery.includes('package')) {
+            if (projectContext.scripts?.['package']) {
+                commands.push('package');
+            }
+        }
+
+        if (commands.length > 0) {
+            const packageManager = projectContext.packageManager || 'npm';
+            const command = commands.map(cmd => buildCommand(packageManager, cmd)).join(' && ');
+
+            return {
+                type: 'build',
+                command,
+                requiresConfirmation: false,
+                riskLevel: 'safe',
+                originalMessage: query,
+                confidence: 0.8
+            };
+        }
+    }
+
+    // Pattern: "install X" or "add X"
+    if (lowerQuery.match(/^(install|add)\s+/)) {
+        const packageName = lowerQuery.replace(/^(install|add)\s+/, '');
+        const pm = projectContext.packageManager || 'npm';
+
+        let installCommand: string;
+        switch (pm) {
+            case 'yarn':
+            case 'pnpm':
+            case 'bun':
+                installCommand = `${pm} add ${packageName}`;
+                break;
+            case 'npm':
+                installCommand = `npm install ${packageName}`;
+                break;
+            case 'pip':
+                installCommand = `pip install ${packageName}`;
+                break;
+            case 'poetry':
+                installCommand = `poetry add ${packageName}`;
+                break;
+            case 'cargo':
+                installCommand = `cargo add ${packageName}`;
+                break;
+            case 'go':
+                installCommand = `go get ${packageName}`;
+                break;
+            default:
+                installCommand = `${pm} install ${packageName}`;
+        }
+
+        return {
+            type: 'install',
+            command: installCommand,
+            requiresConfirmation: true,
+            riskLevel: 'moderate',
+            originalMessage: query,
+            confidence: 0.85
+        };
+    }
+
+    // Pattern: "delete X" or "remove X"
+    if (lowerQuery.match(/^(delete|remove|rm)\s+/)) {
+        return {
+            type: 'remove',
+            command: lowerQuery,
+            requiresConfirmation: true,
+            riskLevel: 'dangerous',
+            originalMessage: query,
+            confidence: 0.7
+        };
+    }
+
+    return null;
+}

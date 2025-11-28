@@ -18,7 +18,6 @@ export const ChatHistory: React.FC<ChatHistoryProps & { children?: React.ReactNo
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        console.log("========>>messagesIds", messages.map((msg) => msg.commandId));
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, children]);
 

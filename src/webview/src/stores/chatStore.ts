@@ -29,7 +29,8 @@ interface ChatState {
     error: string | null;
 
     // Actions
-    addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+    addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string;
+    updateMessageCommandId: (messageId: string, commandId: string) => void;
     setMessages: (messages: Message[]) => void;
     sliceMessages: (index: number) => void;
     setSessions: (sessions: ChatSession[]) => void;
@@ -69,6 +70,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
                             updatedAt: Date.now(),
                             preview: updatedMessages[updatedMessages.length - 1].content.slice(0, 50)
                         }
+                        : s
+                );
+            }
+
+            return {
+                messages: updatedMessages,
+                sessions: updatedSessions
+            };
+        });
+
+        return newMessage.id;
+    },
+
+    updateMessageCommandId: (messageId, commandId) => {
+        set((state) => {
+            const updatedMessages = state.messages.map(msg =>
+                msg.id === messageId
+                    ? { ...msg, commandId }
+                    : msg
+            );
+
+            // Update current session if exists
+            let updatedSessions = state.sessions;
+            if (state.currentSessionId) {
+                updatedSessions = state.sessions.map(s =>
+                    s.id === state.currentSessionId
+                        ? { ...s, messages: updatedMessages }
                         : s
                 );
             }

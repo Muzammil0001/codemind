@@ -49,7 +49,7 @@ export function unwrapOuterCodeFence(text: string): string {
 export function formatLLMMessage(text: string): string {
     if (!text || typeof text !== 'string') return '';
 
-    text = unwrapOuterCodeFence(text);
+    // text = unwrapOuterCodeFence(text);
 
     const fenceMatches = text.match(/```/g);
     if (fenceMatches && fenceMatches.length % 2 === 1) {
