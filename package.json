@@ -271,7 +271,8 @@
     "test": "node ./out/test/runTest.js",
     "test:unit": "jest",
     "test:integration": "jest --config jest.integration.config.js",
-    "package": "vsce package",
+    "pkg": "npm run build:webview && npm run build:extension && npx -y @vscode/vsce package --allow-missing-repository --no-dependencies",
+    "package": "npm run pkg",
     "install:webview": "cd webview && npm install"
   },
   "devDependencies": {
