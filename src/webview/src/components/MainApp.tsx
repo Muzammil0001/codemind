@@ -4,7 +4,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useModelStore } from '../stores/modelStore';
 import { useNotificationStore } from '../stores/notificationStore';
-import { useTerminalStore } from '../stores/terminalStore';
+
 import { useTerminal } from '../hooks/useTerminal';
 import { useFileStore } from '../stores/fileStore';
 import { ChatHistory } from './ChatHistory';
@@ -16,6 +16,7 @@ import { CommandConfirmDialog } from './CommandConfirmDialog';
 import { Loader2 } from 'lucide-react';
 import { formatLLMMessage } from '../utils/formatLLMMessage';
 import { parsePackageJson, detectProjectContext, type CommandIntent, type ProjectScripts } from '../utils/commandDetection';
+import { setPlatform } from '../utils/commandAnalyzer';
 import {
     parseComposerJson,
     parsePyprojectToml,
@@ -44,13 +45,15 @@ export const MainApp = () => {
     const addMessage = useChatStore(state => state.addMessage);
     const updateMessageCommandId = useChatStore(state => state.updateMessageCommandId);
     const setMessages = useChatStore(state => state.setMessages);
+    const updateMessageSteps = useChatStore(state => state.updateMessageSteps);
+    const updateMessageContent = useChatStore(state => state.updateMessageContent);
     const sliceMessages = useChatStore(state => state.sliceMessages);
     const chatSessions = useChatStore(state => state.sessions);
     const setSessions = useChatStore(state => state.setSessions);
     const loading = useChatStore(state => state.isLoading);
     const setLoading = useChatStore(state => state.setLoading);
     const currentSessionId = useChatStore(state => state.currentSessionId);
-    const setCurrentSessionId = useChatStore(state => state.switchSession); // Map switchSession to setCurrentSessionId
+    const setCurrentSessionId = useChatStore(state => state.switchSession);
     const clearMessages = useChatStore(state => state.clearMessages);
 
     const agentStatus = useAgentStore(state => state.status);
@@ -63,10 +66,7 @@ export const MainApp = () => {
 
     const showNotification = useNotificationStore(state => state.addNotification);
 
-    const updateCommand = useTerminalStore(state => state.updateCommand);
-    const addOutput = useTerminalStore(state => state.addOutput);
-    const { executeCommand } = useTerminal();
-    const clearAllCommands = useTerminalStore(state => state.clearCompleted);
+    const { executeCommand, clearCompletedCommands } = useTerminal();
 
     const availableFiles = useFileStore(state => state.files);
     const setAvailableFiles = useFileStore(state => state.setFiles);
@@ -96,29 +96,68 @@ export const MainApp = () => {
                     if (message.data.files) setAvailableFiles(message.data.files);
                     if (message.data.activeModel) setSelectedModel(message.data.activeModel);
                     if (message.data.providers) setAllProviderStatus(new Map(message.data.providers));
-                    setIsReady(true);
+                    if (message.data.platform) setPlatform(message.data.platform);
+
+                    if (!isReady) {
+                        setIsReady(true);
+                        if (messages.length === 0) {
+                            postMessage({ type: 'webviewReady' });
+                        }
+                    }
                     break;
 
                 case 'queryResponse':
+                    console.log('📨 MainApp: Received queryResponse:', {
+                        loading: message.data.loading,
+                        success: message.data.success,
+                        responseLength: message.data.response?.length || 0,
+                        hasCommandId: !!message.data.commandId,
+                        commandId: message.data.commandId,
+                        message: message
+                    });
+
                     if (message.data.loading) {
+                        console.log('⏳ MainApp: Setting loading state to true');
                         setLoading(true);
                         setAgentStatus('thinking');
                     } else {
+                        console.log('✅ MainApp: Setting loading state to false');
                         setLoading(false);
                         setAgentStatus('idle');
 
                         if (!message.data.success) {
+                            console.log('❌ MainApp: Query failed, showing notification');
                             showNotification(
                                 message.data.response || 'An error occurred',
                                 'error'
                             );
                         }
-
+                        console.log(' MainApp: Received queryResponse:', message.data);
                         const formattedContent = message.data.success
-                            ? formatLLMMessage(message.data.response)
-                            : `Error: ${message.data.response}`;
+                            ? formatLLMMessage(message.data.response || '')
+                            : `Error: ${message.data.response || 'Unknown error'}`;
 
-                        addMessage({ role: 'ai', content: formattedContent });
+                        console.log('💬 MainApp: Adding AI message to chat:', {
+                            contentLength: formattedContent?.length,
+                            hasCommandId: !!message.data.commandId,
+                            commandId: message.data.commandId,
+                            message
+                        });
+
+                        if (lastCommandMessageRef.current) {
+                            updateMessageContent(lastCommandMessageRef.current.messageId, formattedContent);
+                            if (message.data.commandId) {
+                                updateMessageCommandId(lastCommandMessageRef.current.messageId, message.data.commandId);
+                            }
+                        } else {
+                            addMessage({
+                                role: 'ai',
+                                content: formattedContent,
+                                commandId: message.data.commandId
+                            });
+                        }
+
+                        console.log('✅ MainApp: AI message added to chat');
                     }
                     break;
 
@@ -132,15 +171,21 @@ export const MainApp = () => {
 
                 case 'loadChat':
                     if (message.data) {
-                        setSessionId(message.data.id);
-                        setCurrentSessionId(message.data.id);  // Make sure to set current session
-                        setMessages(
-                            (message.data.messages || []).map((msg: Message) => ({
-                                ...msg,
-                                content: msg.role === 'ai' ? formatLLMMessage(msg.content) : msg.content
-                            }))
-                        );
-                        setShowHistory(false);
+                        const isDifferentSession = sessionId !== message.data.id;
+                        const hasNoMessages = messages.length === 0;
+
+                        if (isDifferentSession || hasNoMessages) {
+                            setSessionId(message.data.id);
+                            setCurrentSessionId(message.data.id);
+                            setMessages(
+                                (message.data.messages || []).map((msg: Message) => ({
+                                    ...msg,
+                                    content: msg.role === 'ai' ? formatLLMMessage(msg.content) : msg.content
+                                }))
+                            );
+                            setShowHistory(false);
+                            lastCommandMessageRef.current = null;
+                        }
                     }
                     break;
 
@@ -185,55 +230,67 @@ export const MainApp = () => {
                     }
                     break;
 
-                case 'terminalOutput':
-                    if (message.commandId && message.output) {
-                        const outputContent = typeof message.output === 'string'
-                            ? message.output
-                            : message.output.content || message.output;
+                case 'terminalCommandStarted':
+                    if (message.commandId && message.command) {
+                        if (lastCommandMessageRef.current) {
+                            updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
+                        } else if (loading) {
+                            const messageId = addMessage({
+                                role: 'ai',
+                                content: '',
+                                commandId: message.commandId,
+                                steps: [{
+                                    id: 'cmd-exec',
+                                    title: 'Executing Terminal Command',
+                                    description: message.command,
+                                    status: 'running'
+                                }]
+                            });
+                            lastCommandMessageRef.current = { messageId, commandId: message.commandId };
+                        }
+                    }
+                    break;
 
-                        const outputType = message.output.type || 'stdout';
 
-                        addOutput(message.commandId, {
-                            content: outputContent,
-                            type: outputType,
-                            timestamp: Date.now()
-                        });
 
+                case 'terminalStatus':
+                    if (message.commandId && message.status) {
                         if (lastCommandMessageRef.current &&
                             lastCommandMessageRef.current.commandId !== message.commandId) {
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
                             lastCommandMessageRef.current.commandId = message.commandId;
                         }
-                    }
-                    break;
 
-                case 'terminalStatus':
-                    if (message.commandId && message.status) {
-                        updateCommand(message.commandId, {
-                            status: message.status,
-                            pid: message.pid
-                        });
+                        const currentMessages = useChatStore.getState().messages;
+                        const msg = currentMessages.find(m => m.commandId === message.commandId);
 
-                        if (lastCommandMessageRef.current &&
-                            lastCommandMessageRef.current.commandId !== message.commandId) {
-                            updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
-                            lastCommandMessageRef.current.commandId = message.commandId;
+                        if (msg && msg.steps) {
+                            const newSteps = msg.steps.map(step =>
+                                step.id === 'cmd-exec' ? { ...step, status: message.status } : step
+                            );
+                            updateMessageSteps(msg.id, newSteps, msg.thoughtProcess, msg.isThinking);
                         }
                     }
                     break;
 
                 case 'terminalComplete':
                     if (message.commandId) {
-                        updateCommand(message.commandId, {
-                            status: message.status || 'completed',
-                            exitCode: message.exitCode,
-                            endTime: Date.now()
-                        });
+                        const status = message.status || 'completed';
 
                         if (lastCommandMessageRef.current &&
                             lastCommandMessageRef.current.commandId !== message.commandId) {
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
                             lastCommandMessageRef.current.commandId = message.commandId;
+                        }
+
+                        const currentMessages = useChatStore.getState().messages;
+                        const msg = currentMessages.find(m => m.commandId === message.commandId);
+
+                        if (msg && msg.steps) {
+                            const newSteps = msg.steps.map(step =>
+                                step.id === 'cmd-exec' ? { ...step, status: status === 'stopped' ? 'failed' : status } : step
+                            );
+                            updateMessageSteps(msg.id, newSteps, msg.thoughtProcess, msg.isThinking);
                         }
                     }
                     break;
@@ -268,9 +325,9 @@ export const MainApp = () => {
     }, [availableFiles, postMessage]);
 
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages?.length > 0) {
             const timeoutId = setTimeout(() => {
-                const title = messages[0].content.slice(0, TITLE_PREVIEW_LENGTH) + (messages[0].content.length > TITLE_PREVIEW_LENGTH ? '...' : '');
+                const title = messages[0].content.slice(0, TITLE_PREVIEW_LENGTH) + (messages[0].content?.length > TITLE_PREVIEW_LENGTH ? '...' : '');
                 postMessage({
                     type: 'saveChat',
                     session: {
@@ -278,7 +335,7 @@ export const MainApp = () => {
                         title: title,
                         timestamp: Date.now(),
                         messages,
-                        preview: messages[messages.length - 1].content.slice(0, MESSAGE_PREVIEW_LENGTH)
+                        preview: messages[messages?.length - 1].content.slice(0, MESSAGE_PREVIEW_LENGTH)
                     }
                 });
             }, CHAT_SAVE_DEBOUNCE);
@@ -289,6 +346,7 @@ export const MainApp = () => {
 
 
     const handleSend = async (text: string, files: AttachedItem[]) => {
+        lastCommandMessageRef.current = null;
         addMessage({ role: 'user', content: text });
         setLoading(true);
         setAgentStatus('thinking');
@@ -364,7 +422,6 @@ export const MainApp = () => {
             return;
         }
 
-        // If not a command, send to AI for normal processing
         const contextualPrompt = buildContextualPrompt(text, messages, projectScripts);
 
         postMessage({
@@ -426,12 +483,13 @@ export const MainApp = () => {
     const handleDeleteSession = (id: string) => postMessage({ type: 'deleteChat', id });
     const handleNewChat = () => {
         clearMessages();
-        clearAllCommands();
+        clearCompletedCommands();
         const newSessionId = GENERATE_SESSION_ID();
         setSessionId(newSessionId);
         setCurrentSessionId(newSessionId);
         setShowHistory(false);
         setEditingMessage('');
+        lastCommandMessageRef.current = null;
     };
 
     const handleConfirmCommand = () => {
@@ -490,7 +548,7 @@ export const MainApp = () => {
             ) : (
                 <>
                     <ChatHistory
-                        messages={messages.filter(m => m.role !== 'system') as any}
+                        messages={(messages || []).filter(m => m.role !== 'system') as any}
                         agentStatus={agentStatus}
                         onEdit={handleEdit}
                         onHistoryClick={handleHistoryClick}

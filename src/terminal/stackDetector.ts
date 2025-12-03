@@ -1,10 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { StackType, PackageManager } from '../types/stackTypes';
+import { StackUtils } from '../utils/stackHelpers';
 
 export interface StackInfo {
-  primary: 'node' | 'python' | 'java' | 'maven' | 'php' | 'laravel' | 'go' | 'rust' | 'unknown' | 'next' | 'react';
-  packageManager?: string;
+  primary: StackType;
+  packageManager?: PackageManager;
   framework?: string;
 }
 
@@ -30,24 +32,72 @@ export class StackDetector {
       const packageJson = await this.readJson(path.join(workspaceRoot, 'package.json'));
       const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
 
-      let primary: StackInfo['primary'] = 'node';
-      if (dependencies.next) primary = 'next';
-      else if (dependencies.react) primary = 'react';
+      let primary: StackType = 'node';
 
-      let packageManager = 'npm';
-      if (await this.fileExists(workspaceRoot, 'yarn.lock')) packageManager = 'yarn';
-      if (await this.fileExists(workspaceRoot, 'pnpm-lock.yaml')) packageManager = 'pnpm';
-      if (await this.fileExists(workspaceRoot, 'bun.lockb')) packageManager = 'bun';
+      if (dependencies.next) {
+        primary = 'next';
+      }
+      else if (dependencies.react) {
+        primary = 'react';
+      }
+      else if (dependencies.vue) {
+        primary = 'vue';
+      }
+      else if (dependencies.nuxt) {
+        primary = 'nuxt';
+      }
+      else if (dependencies['@angular/core']) {
+        primary = 'angular';
+      }
+      else if (dependencies.svelte) {
+        primary = 'svelte';
+      }
+      else if (dependencies.express) {
+        primary = 'express';
+      }
+      else if (dependencies['@nestjs/core']) {
+        primary = 'nestjs';
+      }
+
+      const lockFiles = await this.getLockFiles(workspaceRoot);
+      const packageManager = StackUtils.detectPackageManager(lockFiles) || 'npm';
 
       return { primary, packageManager };
     }
 
-    if (await this.fileExists(workspaceRoot, 'requirements.txt') || await this.fileExists(workspaceRoot, 'pyproject.toml')) {
-      return { primary: 'python', packageManager: 'pip' };
+    if (await this.fileExists(workspaceRoot, 'requirements.txt') ||
+        await this.fileExists(workspaceRoot, 'pyproject.toml') ||
+        await this.fileExists(workspaceRoot, 'Pipfile')) {
+
+      const requirements = await this.readRequirements(workspaceRoot);
+      let primary: StackType = 'python';
+
+      if (requirements.includes('django')) {
+        primary = 'django';
+      }
+      else if (requirements.includes('flask')) {
+        primary = 'flask';
+      }
+      else if (requirements.includes('fastapi')) {
+        primary = 'fastapi';
+      }
+
+      return { primary, packageManager: 'pip' };
     }
 
     if (await this.fileExists(workspaceRoot, 'pom.xml')) {
-      return { primary: 'maven' };
+      const pomContent = await this.readFile(path.join(workspaceRoot, 'pom.xml'));
+
+      if (pomContent.includes('spring-boot') || pomContent.includes('spring-framework')) {
+        return { primary: 'spring', packageManager: 'maven' };
+      }
+
+      return { primary: 'maven', packageManager: 'maven' };
+    }
+
+    if (await this.fileExists(workspaceRoot, 'build.gradle') ||
+        await this.fileExists(workspaceRoot, 'build.gradle.kts')) {
+      return { primary: 'java', packageManager: 'maven' };
     }
 
     if (await this.fileExists(workspaceRoot, 'composer.json')) {
@@ -58,6 +108,14 @@ export class StackDetector {
         return { primary: 'laravel', packageManager: 'composer' };
       }
       return { primary: 'php', packageManager: 'composer' };
+    }
+
+    if (await this.fileExists(workspaceRoot, 'go.mod')) {
+      return { primary: 'go' };
+    }
+
+    if (await this.fileExists(workspaceRoot, 'Cargo.toml')) {
+      return { primary: 'rust' };
     }
 
     return { primary: 'unknown' };
@@ -73,6 +131,47 @@ export class StackDetector {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  private async getLockFiles(root: string): Promise<string[]> {
+    const possibleLockFiles = [
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+      'bun.lockb',
+      'composer.lock',
+      'Pipfile.lock'
+    ];
+
+    const existingFiles: string[] = [];
+    for (const file of possibleLockFiles) {
+      if (await this.fileExists(root, file)) {
+        existingFiles.push(file);
+      }
+    }
+    return existingFiles;
+  }
+
+  private async readRequirements(root: string): Promise<string> {
+    const requirementFiles = ['requirements.txt', 'pyproject.toml', 'Pipfile'];
+
+    for (const file of requirementFiles) {
+      try {
+        const content = await this.readFile(path.join(root, file));
+        return content.toLowerCase();
+      } catch {
+        continue;
+      }
+    }
+    return '';
+  }
+
+  private async readFile(filePath: string): Promise<string> {
+    try {
+      return await fs.promises.readFile(filePath, 'utf-8');
+    } catch {
+      return '';
     }
   }
 

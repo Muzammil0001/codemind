@@ -41,6 +41,11 @@ export class AgentOrchestrator {
 
     async executeTask(task: AgentTask): Promise<AgentResult> {
         logger.info(`Orchestrator received task: ${task.id} (${task.type})`);
+        console.log('🎯 AgentOrchestrator: Received task', {
+            id: task.id,
+            type: task.type,
+            description: task.description.substring(0, 100)
+        });
 
         this.activeTasks.set(task.id, task);
 
@@ -54,14 +59,27 @@ export class AgentOrchestrator {
                 throw new Error(`No agent available for type: ${task.type}`);
             }
 
+            console.log(`🤖 AgentOrchestrator: Executing task with ${agent.getName()}`);
             const result = await this.taskQueue.add(() => agent.run(task)) as AgentResult;
+
+            console.log('✅ AgentOrchestrator: Task execution completed', {
+                taskId: task.id,
+                success: result.success,
+                outputLength: result.output?.length || 0
+            });
 
             task.status = 'completed';
             task.completedAt = Date.now();
             task.result = result;
 
+            logger.info(`Orchestrator: Task ${task.id} completed successfully`);
             return result;
         } catch (error) {
+            console.error('❌ AgentOrchestrator: Task execution failed', {
+                taskId: task.id,
+                error: (error as Error).message
+            });
+
             task.status = 'failed';
             task.error = (error as Error).message;
 

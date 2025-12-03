@@ -118,22 +118,41 @@ export class ContextBuilder {
      * Get project structure context based on query
      */
     private async getProjectStructureContext(query: string): Promise<string> {
+        logger.info(`🏗️ Building project structure context for query: "${query}"`);
         const structure = projectBrain.getProjectStructure();
         if (!structure) {
+            logger.warn('⚠️ No project structure available');
             return '';
         }
 
-        return projectBrain.getStructureContext(query);
+        logger.info(`📊 Project structure loaded: ${structure.name} (${structure.type}) with ${structure.frameworks.length} frameworks detected`);
+        const context = projectBrain.getStructureContext(query);
+        logger.info(`📝 Generated context prompt (${context.length} chars) for file placement decisions`);
+        return context;
     }
 
-    /**
-     * Find relevant files using multiple strategies:
-     * 1. Semantic search
-     * 2. Project brain relevance
-     * 3. Keyword matching
-     */
     private async findRelevantFiles(query: string, maxFiles: number): Promise<string[]> {
         const filePaths = new Set<string>();
+
+        const mentionRegex = /@([^\s]+)/g;
+        let match;
+        while ((match = mentionRegex.exec(query)) !== null) {
+            const mentionedPath = match[1];
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (workspaceRoot) {
+                let fullPath = vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), mentionedPath).fsPath;
+                if (await this.fileExists(fullPath)) {
+                    filePaths.add(fullPath);
+                    continue;
+                }
+                console.log('Found file:', fullPath);
+                const ignorePattern = '**/{node_modules,venv,.venv,target,vendor,bin,obj,dist,build,out}/**';
+                const files = await vscode.workspace.findFiles(`**/${mentionedPath}*`, ignorePattern, 1);
+                if (files.length > 0) {
+                    filePaths.add(files[0].fsPath);
+                }
+            }
+        }
 
         // Strategy 1: Use project brain's relevance scoring
         try {
@@ -434,6 +453,15 @@ export class ContextBuilder {
         }
 
         return prompt;
+    }
+
+    private async fileExists(filePath: string): Promise<boolean> {
+        try {
+            await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+            return true;
+        } catch {
+            return false;
+        }
     }
 }
 

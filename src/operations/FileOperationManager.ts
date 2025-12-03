@@ -67,9 +67,6 @@ export class FileOperationManager {
         }
     }
 
-    /**
-     * Resolve a file path relative to the workspace root
-     */
     private resolveWorkspacePath(filePath: string): vscode.Uri {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
 
@@ -77,10 +74,8 @@ export class FileOperationManager {
             throw new Error('No workspace folder open');
         }
 
-        // Remove leading slash if present
         const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
 
-        // Join with workspace root
         return vscode.Uri.joinPath(workspaceRoot, cleanPath);
     }
 
@@ -88,46 +83,66 @@ export class FileOperationManager {
         const uri = this.resolveWorkspacePath(operation.path);
         const content = operation.content || '';
 
+        try {
+            await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(uri, '..'));
+        } catch (error) {
+        }
+
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
 
-        const document = await vscode.workspace.openTextDocument(uri);
-        await vscode.window.showTextDocument(document);
+        await this.refreshFileSystem();
+
+        // Don't open the file automatically to prevent stealing focus from the chat panel
+        // Users can click the file link in the response to open it
+        /*
+        try {
+            const document = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(document, {
+                preview: false,
+                preserveFocus: true,
+                viewColumn: vscode.ViewColumn.One
+            });
+        } catch (error) {
+            logger.warn(`Could not open created file: ${operation.path}`, error as Error);
+        }
+        */
     }
 
     private async modifyFile(operation: FileOperation): Promise<void> {
         const uri = this.resolveWorkspacePath(operation.path);
-        const document = await vscode.workspace.openTextDocument(uri);
-        const editor = await vscode.window.showTextDocument(document);
+
+        // Read the file content without opening it in the editor
+        const fileContent = await vscode.workspace.fs.readFile(uri);
+        const currentText = Buffer.from(fileContent).toString('utf8');
+
+        let newContent: string;
 
         if (operation.diff) {
             const changes = diffGenerator.generateMinimalDiff(
-                document.getText(),
+                currentText,
                 operation.diff.modified
             );
 
-            await editor.edit(editBuilder => {
-                for (const change of changes) {
-                    const range = new vscode.Range(
-                        change.startLine - 1,
-                        0,
-                        change.endLine,
-                        0
-                    );
-                    editBuilder.replace(range, change.replacement);
-                }
-            });
+            // Apply changes to the text
+            const lines = currentText.split('\n');
+            for (const change of changes.reverse()) {
+                lines.splice(
+                    change.startLine - 1,
+                    change.endLine - change.startLine + 1,
+                    ...change.replacement.split('\n')
+                );
+            }
+            newContent = lines.join('\n');
         } else if (operation.content) {
-            const fullRange = new vscode.Range(
-                document.positionAt(0),
-                document.positionAt(document.getText().length)
-            );
-
-            await editor.edit(editBuilder => {
-                editBuilder.replace(fullRange, operation.content!);
-            });
+            newContent = operation.content;
+        } else {
+            return;
         }
 
-        await document.save();
+        // Write the modified content back to the file
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(newContent, 'utf8'));
+
+        await this.refreshFileSystem();
     }
 
     private async deleteFile(operation: FileOperation): Promise<void> {
@@ -155,6 +170,8 @@ export class FileOperationManager {
         const newUri = this.resolveWorkspacePath(operation.newPath);
 
         await vscode.workspace.fs.rename(oldUri, newUri, { overwrite: false });
+
+        await this.refreshFileSystem();
     }
 
     async executeBatch(operations: FileOperation[]): Promise<void> {
@@ -164,7 +181,23 @@ export class FileOperationManager {
             await this.executeOperation(operation);
         }
 
+        await this.refreshFileSystem();
+
         logger.info('Batch execution complete');
+    }
+
+
+    private async refreshFileSystem(): Promise<void> {
+        // Don't refresh the file explorer as it steals focus from the chat panel
+        // The file watcher in WebviewProvider will handle updates automatically
+        /*
+        try {
+            await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+            logger.info('File system refreshed to update @ reference suggestions');
+        } catch (error) {
+            logger.warn('Failed to refresh file system:', error);
+        }
+        */
     }
 }
 

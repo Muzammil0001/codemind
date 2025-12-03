@@ -1,11 +1,8 @@
-
-
 import { BaseAgent } from './BaseAgent';
 import { AgentTask, AgentResult } from '../types';
 import { modelRouter } from '../ai/ModelRouter';
 import { projectBrain } from '../brain/ProjectBrain';
 import { fileOperationManager } from '../operations/FileOperationManager';
-import * as vscode from 'vscode';
 import { logger } from '../utils/logger';
 import { PROMPTS } from '../config/prompts';
 import { terminalManager } from '../terminal/TerminalManager';
@@ -17,91 +14,170 @@ export class CoderAgent extends BaseAgent {
     }
 
     async execute(task: AgentTask): Promise<AgentResult> {
-        logger.info('=== CoderAgent Execute Start ===');
-        logger.info(`Task: ${task.description}`);
-
         const context = await this.buildContext(task);
-
-        // Log the context being used
-        logger.info('=== Context Built ===');
-        logger.info(`Structure Context Length: ${context.structureContext?.length || 0}`);
-        logger.info(`Full Context Length: ${context.fullContext?.length || 0}`);
-        logger.info(`Relevant Files: ${context.relevantFiles.length}`);
-        logger.info('Structure Context Preview:');
-        logger.info(context.structureContext?.substring(0, 500) || 'No structure context');
-        console.log('🔍 PROJECT STRUCTURE CONTEXT:', context.structureContext);
-        console.log('🔍 FULL CONTEXT:', context.fullContext?.substring(0, 1000));
-
         const prompt = this.buildCodingPrompt(task, context);
 
-        logger.info('=== Prompt Built ===');
-        logger.info(`Prompt Length: ${prompt.length}`);
-        logger.info('Prompt Preview:');
-        logger.info(prompt.substring(0, 500));
-        console.log('📝 FINAL PROMPT TO AI:', prompt.substring(0, 1000));
-
+        console.log('🤖 Sending request to AI model...');
         const response = await modelRouter.generateCompletion({
             prompt,
             systemPrompt: PROMPTS.SYSTEM.CODER,
-            context: [context.fullContext], // Use comprehensive context
+            context: [context.fullContext],
             maxTokens: 3000,
             model: task.context.modelId
         }, 'code-generation');
 
+
         const operations = this.extractFileOperations(response.content);
         let operationsExecuted = 0;
-
-        if (operations.length > 0) {
-            logger.info(`Detected ${operations.length} file operation(s)`);
-
-            for (const operation of operations) {
-                try {
-                    if (operation.type === 'run_script') {
-                        logger.info(`Executing script: ${operation.script}`);
-                        await terminalManager.executeCommand(operation.script, {
-                            location: TerminalLocation.MAIN
-                        });
-                        operationsExecuted++;
-                    } else {
-                        await fileOperationManager.executeOperation(operation);
-                        operationsExecuted++;
-                    }
-                } catch (error) {
-                    logger.error(`Failed to execute operation: ${operation.type}`, error as Error);
-                }
-            }
-        }
-
-        const code = this.extractCode(response.content);
-        const linesChanged = code.split('\n').length;
+        const commandIds: string[] = [];
 
         let finalResponse = response.content;
-        if (operationsExecuted > 0) {
-            // Show just the filename, not the full path, with better formatting
-            const modifiedFiles = operations.map(op => {
-                if (op.type === 'run_script') {
-                    return `- **Run Script**: \`${op.script}\``;
+
+        finalResponse = this.removeOperationJsonBlocks(response.content);
+
+        if (operations.length > 0) {
+            const fileOps = operations.filter(op => op.type !== 'run_script');
+            const scriptOps = operations.filter(op => op.type === 'run_script');
+            logger.info('====>>operations', operations);
+            if (fileOps.length > 0) {
+                const grouped = this.groupOperationsByType(fileOps);
+
+                if (grouped.create.length > 0) {
+                    finalResponse += `\n**Created ${grouped.create.length} file(s):**\n`;
+                    grouped.create.forEach(op => {
+                        const filename = op.path.split('/').pop() || op.path;
+                        finalResponse += `\n[${filename}](${op.path}) - \`${op.path}\`\n`;
+                    });
                 }
-                const filename = op.path.split('/').pop() || op.path;
-                return `- **[${filename}](${op.path})**`;
-            }).join('\n');
-            finalResponse += `\n\n### 📝 Modified Files\n${modifiedFiles}`;
+
+                if (grouped.modify.length > 0) {
+                    finalResponse += `\n**Modified ${grouped.modify.length} file(s):**\n`;
+                    grouped.modify.forEach(op => {
+                        const filename = op.path.split('/').pop() || op.path;
+                        finalResponse += `\n[${filename}](${op.path}) - \`${op.path}\`\n`;
+                    });
+                }
+
+                if (grouped.delete.length > 0) {
+                    finalResponse += `\n**Deleted ${grouped.delete.length} file(s):**\n`;
+                    grouped.delete.forEach(op => {
+                        finalResponse += `\n\`${op.path}\`\n`;
+                    });
+                }
+
+                if (grouped.rename.length > 0) {
+                    finalResponse += `\n**Renamed/Moved ${grouped.rename.length} file(s):**\n`;
+                    grouped.rename.forEach(op => {
+                        finalResponse += `\n\`${op.path}\` → \`${op.newPath}\`\n`;
+                    });
+                }
+            }
+
+            if (scriptOps.length > 0) {
+                finalResponse += `\n\n**🧠 Running Scripts in Terminal...**\n`;
+            }
+
+            logger.info(`🔄 Executing ${operations.length} operation(s)`);
+            console.log(`🔄 Executing ${operations.length} operation(s)`);
+
+            const backgroundOps: Promise<void>[] = [];
+
+            for (const op of operations) {
+                if (op.type === 'run_script') {
+                    try {
+                        logger.info(`🚀 Executing script: ${op.script}`);
+
+                        const result = await terminalManager.executeCommand(op.script, {
+                            location: TerminalLocation.MAIN
+                        });
+
+                        if (result?.success && result?.commandId) {
+                            commandIds.push(result.commandId);
+                            logger.info(`Script command ID: ${result.commandId}`);
+                        }
+
+                        operationsExecuted++;
+                    } catch (err) {
+                        logger.error(`❌ Script execution failed: ${op.script}`, err as Error);
+                    }
+
+                } else {
+                    logger.info(`⚙️ Background ${op.type} on: ${op.path}`);
+
+                    const taskPromise = fileOperationManager.executeOperation(op)
+                        .then(() => {
+                            operationsExecuted++;
+                            logger.info(`✅ ${op.type.toUpperCase()} completed: ${op.path}`);
+                        })
+                        .catch(err => {
+                            logger.error(`❌ File operation failed: ${op.type} on ${op.path}`, err as Error);
+                        });
+
+                    backgroundOps.push(taskPromise);
+                }
+            }
+
+            // Not awaited — fully background
+            Promise.allSettled(backgroundOps);
+
+            logger.info(`📊 Summary: ${operationsExecuted}/${operations.length} completed (scripts foreground, files async)`);
+            console.log(`📊 Summary: ${operationsExecuted}/${operations.length} completed`);
+        } else {
+            logger.info('ℹ️ No file operations detected');
         }
 
-        return this.createResult(task.id, true, finalResponse, {
+
+        const code = this.extractCode(finalResponse);
+        const linesChanged = code.split('\n').length;
+
+        const result = this.createResult(task.id, true, finalResponse, {
             metrics: {
                 tokensUsed: response.tokensUsed,
                 latency: response.latency,
                 linesChanged,
                 operationsExecuted
             },
+            commandIds: commandIds.length > 0 ? commandIds : undefined,
             suggestions: [
                 operationsExecuted > 0 ? `Executed ${operationsExecuted} file operation(s)` : 'Review generated code for correctness',
                 'Run tests after applying changes',
                 'Consider adding error handling'
             ]
         });
+        return result;
     }
+
+    private groupOperationsByType(operations: any[]) {
+        return {
+            create: operations.filter(op => op.type === 'create'),
+            modify: operations.filter(op => op.type === 'modify'),
+            delete: operations.filter(op => op.type === 'delete'),
+            rename: operations.filter(op => op.type === 'rename' || op.type === 'move')
+        };
+    }
+
+    private removeOperationJsonBlocks(response: string): string {
+        return response.replace(/```json\s*\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+            try {
+                const parsed = JSON.parse(jsonContent);
+
+                const isOldFormatOp =
+                    parsed.operation &&
+                    ['create', 'modify', 'delete', 'rename', 'move', 'run_script'].includes(parsed.operation);
+
+                const isToolCodeOp =
+                    parsed.tool_code &&
+                    ['create_file', 'modify_file', 'delete_file', 'rename_file', 'move_file', 'run_script'].includes(parsed.tool_code);
+
+                if (isOldFormatOp || isToolCodeOp) {
+                    return '';
+                }
+            } catch {
+            }
+            return match;
+        });
+    }
+
 
     private async buildContext(task: AgentTask): Promise<{
         relevantFiles: string[];
@@ -223,6 +299,33 @@ export class CoderAgent extends BaseAgent {
         }
 
         return response;
+    }
+
+    private isBuildTestDeployScript(command: string): boolean {
+        // Generic patterns that work across any programming language stack
+        const buildTestDeployPatterns = [
+            // Common build/test/deploy verbs in any language/tool
+            /\b(build|compile|package|assemble|bundle|minify|optimize)\b/i,
+            /\b(test|spec|check|verify|validate|lint|format|analyze)\b/i,
+            /\b(deploy|publish|release|upload|push|ship)\b/i,
+            /\b(install|setup|configure|init|bootstrap)\b/i,
+            /\b(clean|purge|remove|delete)\b/i,
+            /\b(start|run|serve|dev|development|production)\b/i,
+
+            // Common package managers and build tools with build/test/deploy actions
+            /\b(npm|yarn|pnpm|pip|composer|maven|gradle|cargo|go|rustc|dotnet|nuget)\b.*\b(build|test|deploy|compile|package|install|run)\b/i,
+
+            // Common script names that indicate build/test/deploy operations
+            /\b(build|test|deploy|ci|cd|pipeline|workflow)\b/i,
+
+            // Docker and container operations
+            /\b(docker|podman|containerd)\b.*\b(build|run|push|deploy|compose)\b/i,
+
+            // Common build output files or directories
+            /\b(dist|build|target|out|bin|obj)\b/i
+        ];
+
+        return buildTestDeployPatterns.some(pattern => pattern.test(command));
     }
 }
 

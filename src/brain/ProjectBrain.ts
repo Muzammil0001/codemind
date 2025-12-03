@@ -1,5 +1,4 @@
-
-
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ProjectBrainState, CodeStyle, DetectedFramework, ProjectStructure } from '../types';
 import { astParser } from './ASTParser';
@@ -26,13 +25,18 @@ export class ProjectBrain {
 
         if (cached) {
             this.state = cached as ProjectBrainState;
-            // Restore project structure from cache
-            if (this.state.projectStructure) {
-                this.projectStructure = this.state.projectStructure;
-                logger.info('Restored project structure from cache');
+
+            const hasChanged = await this.hasProjectChanged();
+            if (!hasChanged) {
+                if (this.state.projectStructure) {
+                    this.projectStructure = this.state.projectStructure;
+                    logger.info('Restored project structure from cache (no changes detected)');
+                }
+                logger.info('Loaded Project Brain from cache');
+                return;
+            } else {
+                logger.info('Project has changed since last analysis, re-analyzing...');
             }
-            logger.info('Loaded Project Brain from cache');
-            return;
         }
 
         await this.analyzeProject();
@@ -274,6 +278,114 @@ export class ProjectBrain {
             frameworks: this.state.frameworks.map(f => f.name),
             circularDependencies: this.state.dependencyGraph.circularDependencies.length
         };
+    }
+
+
+    private async hasProjectChanged(): Promise<boolean> {
+        if (!this.state || !this.workspaceRoot) {
+            return true; 
+        }
+
+        const lastAnalysis = this.state.lastAnalyzed || 0;
+
+        try {
+            const keyFiles = [
+                'package.json',
+                'tsconfig.json',
+                'next.config.js',
+                'next.config.ts',
+                'nuxt.config.js',
+                'nuxt.config.ts',
+                'vue.config.js',
+                'vite.config.js',
+                'webpack.config.js',
+                'angular.json',
+                'requirements.txt',
+                'pyproject.toml',
+                'manage.py',
+                'Cargo.toml',
+                'go.mod'
+            ];
+
+            for (const file of keyFiles) {
+                const filePath = path.join(this.workspaceRoot, file);
+                try {
+                    const stat = await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+                    if (stat.mtime > lastAnalysis) {
+                        logger.info(`Project changed: ${file} was modified`);
+                        return true;
+                    }
+                } catch {
+                    logger.warn(`File ${file} does not exist`);
+                }
+            }
+
+            const keyDirs = ['src', 'pages', 'app', 'components', 'api', 'server', 'backend'];
+            for (const dir of keyDirs) {
+                const dirPath = path.join(this.workspaceRoot, dir);
+                try {
+                    const files = await this.getDirectoryFiles(dirPath, 2); // Check up to 2 levels deep
+                    for (const file of files) {
+                        const stat = await vscode.workspace.fs.stat(vscode.Uri.file(file));
+                        if (stat.mtime > lastAnalysis) {
+                            logger.info(`Project changed: ${path.relative(this.workspaceRoot, file)} was modified`);
+                            return true;
+                        }
+                    }
+                } catch {
+                   logger.warn(`Directory ${dir} does not exist`);
+                }
+            }
+
+            return false; 
+        } catch (error) {
+            logger.warn('Error checking for project changes, assuming changed:', error);
+            return true;
+        }
+    }
+
+
+    private async getDirectoryFiles(dirPath: string, maxDepth: number, currentDepth: number = 0): Promise<string[]> {
+        if (currentDepth >= maxDepth) {
+            return [];
+        }
+
+        const files: string[] = [];
+
+        try {
+            const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirPath));
+
+            for (const [name, type] of entries) {
+                const fullPath = path.join(dirPath, name);
+
+                if (type === vscode.FileType.File) {
+                    // Only include source files
+                    if (this.isSourceFile(name)) {
+                        files.push(fullPath);
+                    }
+                } else if (type === vscode.FileType.Directory && !this.isIgnoredDirectory(name)) {
+                    files.push(...await this.getDirectoryFiles(fullPath, maxDepth, currentDepth + 1));
+                }
+            }
+        } catch {
+           logger.warn(`Error getting directory files: ${dirPath}`);
+        }
+
+        return files;
+    }
+
+    private isSourceFile(filename: string): boolean {
+        const sourceExtensions = [
+            '.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte', '.py', '.java', '.kt', '.rs', '.go',
+            '.php', '.rb', '.cpp', '.cc', '.cxx', '.c', '.h', '.cs', '.fs', '.fsx'
+        ];
+        return sourceExtensions.some(ext => filename.endsWith(ext));
+    }
+
+    private isIgnoredDirectory(name: string): boolean {
+        const ignored = ['node_modules', '.git', 'dist', 'build', 'out', '.vscode', 'coverage',
+                        '__pycache__', 'venv', 'env', 'target', 'bin', 'obj', '.next', '.nuxt'];
+        return ignored.includes(name);
     }
 
     async refresh(): Promise<void> {

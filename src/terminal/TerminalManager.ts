@@ -389,7 +389,32 @@ export class TerminalManager {
     }
 
     private shouldHideCommand(command: string): boolean {
-        const cmd = command.trim();
+        const cmd = command.trim().toLowerCase();
+
+        // Never hide build/script commands - these should always show output
+        const neverHidePatterns = [
+            /npm\s+/,
+            /yarn\s+/,
+            /pnpm\s+/,
+            /bun\s+/,
+            /node\s+/,
+            /python\s+/,
+            /pip\s+/,
+            /cargo\s+/,
+            /go\s+/,
+            /make\s+/,
+            /gradle\s+/,
+            /mvn\s+/,
+            /composer\s+/,
+            /bundle\s+/,
+            /gem\s+/
+        ];
+
+        if (neverHidePatterns.some(pattern => pattern.test(cmd))) {
+            return false;
+        }
+
+        // Only hide simple file operations that don't produce meaningful output
         const hiddenPatterns = [
             /^mkdir\s/,
             /^touch\s/,

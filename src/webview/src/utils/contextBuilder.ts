@@ -3,7 +3,7 @@
 import type { Message } from '../stores/chatStore';
 
 export interface MessageContext {
-    
+
     recentMessages: Message[];
 
     referencedIds: string[];
@@ -23,7 +23,7 @@ export interface CodeBlock {
 }
 
 export interface ContextualPrompt {
-    
+
     prompt: string;
 
     contextSummary: string;
@@ -173,7 +173,7 @@ function buildStandardPrompt(
     context: MessageContext,
     projectScripts?: Record<string, string>
 ): ContextualPrompt {
-    if (context.recentMessages.length === 0) {
+    if (context.recentMessages?.length === 0) {
         if (projectScripts && Object.keys(projectScripts).length > 0) {
             const scriptsList = Object.keys(projectScripts).join(', ');
             return {
@@ -274,8 +274,8 @@ export function extractActionableItems(aiResponse: string): {
 export function generateContextSummary(context: MessageContext): string {
     const parts: string[] = [];
 
-    if (context.recentMessages.length > 0) {
-        parts.push(`${context.recentMessages.length} recent messages`);
+    if (context.recentMessages?.length > 0) {
+        parts.push(`${context.recentMessages?.length} recent messages`);
     }
 
     if (context.codeBlocks.length > 0) {

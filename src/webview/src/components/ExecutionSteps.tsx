@@ -19,7 +19,7 @@ export const ExecutionSteps: React.FC<ExecutionStepsProps> = ({ steps, isThinkin
     const [isExpanded, setIsExpanded] = useState(true);
     const [isThinkingExpanded, setIsThinkingExpanded] = useState(true);
 
-    if (steps.length === 0 && !thoughtProcess) return null;
+    if ((!steps || steps?.length === 0) && !thoughtProcess) return null;
 
     return (
         <div className="my-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 overflow-hidden">
@@ -35,7 +35,7 @@ export const ExecutionSteps: React.FC<ExecutionStepsProps> = ({ steps, isThinkin
 
             {isExpanded && (
                 <div className="p-2 space-y-1">
-                    {steps.map((step) => (
+                    {steps?.map((step) => (
                         <div key={step.id} className="group">
                             <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/40 transition-colors">
                                 <div className="flex-shrink-0">

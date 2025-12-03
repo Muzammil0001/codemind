@@ -39,6 +39,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
+    const [isDragOver, setIsDragOver] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -158,7 +159,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
             const reader = new FileReader();
             reader.onload = (e) => {
                 const fileContent = e.target?.result as string;
-                setAttachedFiles(prev => [...prev, {
+                setAttachedFiles(prev => [...(prev || []), {
                     id: Date.now().toString() + Math.random(),
                     name: file.name,
                     type: 'file',
@@ -178,7 +179,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageData = e.target?.result as string;
-                setAttachedFiles(prev => [...prev, {
+                setAttachedFiles(prev => [...(prev || []), {
                     id: Date.now().toString() + Math.random(),
                     name: file.name,
                     type: 'image',
@@ -201,7 +202,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         const imageData = e.target?.result as string;
-                        setAttachedFiles(prev => [...prev, {
+                        setAttachedFiles(prev => [...(prev || []), {
                             id: Date.now().toString() + Math.random(),
                             name: file.name || `image-${Date.now()}`,
                             type: 'image',
@@ -224,6 +225,123 @@ export const InputArea: React.FC<InputAreaProps> = ({
         onModelSelect(model);
     };
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files?.length > 0) {
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const fileContent = event.target?.result as string;
+                    setAttachedFiles(prev => [...(prev || []), {
+                        id: Date.now().toString() + Math.random(),
+                        name: file.name,
+                        type: file.type.startsWith('image/') ? 'image' : 'file',
+                        data: fileContent
+                    }]);
+                };
+
+                if (file.type.startsWith('image/')) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            }
+            return;
+        }
+
+        const items = Array.from(e.dataTransfer.items);
+        for (const item of items) {
+            if (item.kind === 'string' && item.type === 'text/uri-list') {
+                // Handle URI drops (from VS Code file explorer)
+                item.getAsString((uriString) => {
+                    try {
+                        let filePath = uriString;
+
+                        // Handle different VS Code URI formats
+                        if (uriString.startsWith('vscode-file://')) {
+                            // VS Code webview URI format
+                            filePath = uriString.replace('vscode-file://', '');
+                            filePath = decodeURIComponent(filePath);
+                        } else if (uriString.startsWith('file://')) {
+                            // Standard file URI
+                            const uri = new URL(uriString);
+                            filePath = decodeURIComponent(uri.pathname);
+                        }
+
+                        // Remove leading slash on Windows
+                        const normalizedPath = filePath.startsWith('/') && /^win/i.test(navigator.platform)
+                            ? filePath.slice(1)
+                            : filePath;
+
+                        // Try to match against workspace files
+                        const workspaceFiles = (availableFiles || []).filter(f => f.type === 'file');
+
+                        // More flexible matching - try filename match first
+                        const fileName = normalizedPath.split(/[/\\]/).pop() || normalizedPath;
+                        let matchingFile = workspaceFiles.find(f => {
+                            const workspaceFileName = f.path.split('/').pop() || f.path;
+                            return workspaceFileName === fileName;
+                        });
+
+                        // If no filename match, try path match
+                        if (!matchingFile) {
+                            matchingFile = workspaceFiles.find(f =>
+                                f.path.includes(fileName) || fileName.includes(f.path)
+                            );
+                        }
+
+                        if (matchingFile) {
+                            // Add as @ reference in text and to attachments
+                            setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + matchingFile.path + ' ');
+                            if (!(attachedFiles || []).find(f => f.name === matchingFile.path)) {
+                                setAttachedFiles(prev => [...(prev || []), {
+                                    id: Date.now().toString() + Math.random(),
+                                    name: matchingFile.path,
+                                    type: 'file'
+                                }]);
+                            }
+                        } else {
+                            // If not found in workspace files, create a reference anyway
+                            setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + fileName + ' ');
+                            setAttachedFiles(prev => [...(prev || []), {
+                                id: Date.now().toString() + Math.random(),
+                                name: fileName,
+                                type: 'file'
+                            }]);
+                        }
+                    } catch (error) {
+                        console.warn('Failed to parse dropped URI:', uriString, error);
+                        // As a fallback, try to extract filename and add as reference
+                        const fileName = uriString.split(/[/\\]/).pop() || 'unknown';
+                        setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + fileName + ' ');
+                    }
+                });
+            }
+        }
+    };
+
     return (
         <div className="border-t border-zinc-800/50 bg-gradient-to-b from-zinc-950 to-black backdrop-blur-xl sticky bottom-0">
             <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
@@ -235,7 +353,16 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         onSelect={selectSuggestion}
                     />
 
-                    <div className="relative bg-zinc-900/80 border border-zinc-800 rounded-2xl shadow-2xl transition-all duration-200 backdrop-blur-sm">
+                    <div
+                        className={`relative bg-zinc-900/80 border rounded-2xl shadow-2xl transition-all duration-200 backdrop-blur-sm ${isDragOver
+                            ? 'border-blue-500 bg-zinc-800/80 shadow-blue-500/20'
+                            : 'border-zinc-800'
+                            }`}
+                        onDragOver={handleDragOver}
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                    >
                         {attachedFiles.length > 0 && (
                             <AttachedFiles files={attachedFiles} onRemove={removeFile} />
                         )}
@@ -245,6 +372,9 @@ export const InputArea: React.FC<InputAreaProps> = ({
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 onPaste={handleImagePaste}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDrop={handleDrop}
                                 disabled={isLoading}
                             />
                         </div>

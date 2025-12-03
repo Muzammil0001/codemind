@@ -34,6 +34,7 @@ interface ChatState {
     addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string;
     updateMessageCommandId: (messageId: string, commandId: string) => void;
     updateMessageSteps: (messageId: string, steps: any[], thoughtProcess?: string, isThinking?: boolean) => void;
+    updateMessageContent: (messageId: string, content: string) => void;
     setMessages: (messages: Message[]) => void;
     sliceMessages: (index: number) => void;
     setSessions: (sessions: ChatSession[]) => void;
@@ -60,7 +61,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
 
         set((state) => {
-            const updatedMessages = [...state.messages, newMessage];
+            const currentMessages = Array.isArray(state.messages) ? state.messages : [];
+            const updatedMessages = [...currentMessages, newMessage];
 
             let updatedSessions = state.sessions;
             if (state.currentSessionId) {
@@ -70,7 +72,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                             ...s,
                             messages: updatedMessages,
                             updatedAt: Date.now(),
-                            preview: updatedMessages[updatedMessages.length - 1].content.slice(0, 50)
+                            preview: updatedMessages.length > 0 ? updatedMessages[updatedMessages.length - 1].content.slice(0, 50) : ''
                         }
                         : s
                 );
@@ -133,7 +135,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
     },
 
-    setMessages: (messages) => set({ messages }),
+    updateMessageContent: (messageId: string, content: string) => {
+        set((state) => {
+            const updatedMessages = state.messages.map(msg =>
+                msg.id === messageId
+                    ? { ...msg, content }
+                    : msg
+            );
+
+            let updatedSessions = state.sessions;
+            if (state.currentSessionId) {
+                updatedSessions = state.sessions.map(s =>
+                    s.id === state.currentSessionId
+                        ? { ...s, messages: updatedMessages }
+                        : s
+                );
+            }
+
+            return {
+                messages: updatedMessages,
+                sessions: updatedSessions
+            };
+        });
+    },
+
+    setMessages: (messages) => set({ messages: messages || [] }),
 
     sliceMessages: (index) => set((state) => ({
         messages: state.messages.slice(0, index)
@@ -166,7 +192,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (session) {
             set({
                 currentSessionId: sessionId,
-                messages: session.messages
+                messages: session.messages || []
             });
         }
     },

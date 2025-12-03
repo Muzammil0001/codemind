@@ -10,6 +10,7 @@ interface TerminalOutputProps {
 }
 
 const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutputProps) => {
+    console.log("======>commandId", commandId);
     const outputRef = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -25,6 +26,7 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     }, [command?.output.length, isCollapsed]);
 
     useLayoutEffect(() => {
+        console.log("======>command", command);
         if (command && (command.status === 'completed' || command.status === 'failed' || command.status === 'stopped')) {
             const timer = setTimeout(() => {
                 setIsCollapsed(true);
@@ -64,9 +66,8 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     };
 
     const getSimplifiedPath = () => {
-        if (!command.cwd) return '';
+        if (!command.cwd || command.cwd === '/workspace') return '';
         const parts = command.cwd.split(/[/\\]/);
-        console.log("======>parts", parts);
         return parts[parts.length - 1] || '';
     };
 
@@ -121,60 +122,63 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
                         </span>
                     </span>
                 </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button
-                        onClick={handleCopy}
-                        className="p-1.5 hover:bg-zinc-700/50 rounded transition-colors"
-                        title="Copy Terminal Output"
-                    >
-                        {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} className="text-zinc-400" />}
-                    </button>
-
-                    {isRunning && onRelocate && (
-                        <button
-                            onClick={handleRelocate}
-                            className="p-1.5 hover:bg-zinc-700/50 rounded transition-colors flex items-center gap-1"
-                            title="Open in Main Terminal"
-                        >
-                            <ExternalLink size={14} className="text-zinc-400" />
-                            <span className="text-xs text-zinc-200">Relocate</span>
-                        </button>
-                    )}
-
-                    {isRunning && (
-                        <button
-                            onClick={handleCancel}
-                            className="px-3 py-1 text-xs text-zinc-300 hover:text-white hover:bg-zinc-700/50 rounded transition-colors"
-                        >
-                            Cancel
-                        </button>
-                    )}
-                </div>
             </div>
 
             {!isCollapsed && (
-                <div
-                    ref={outputRef}
-                    className="terminal-content p-4 font-mono text-sm overflow-auto bg-[#1e1e1e]"
-                    style={{ maxHeight: '350px', minHeight: '120px' }}
-                >
-                    {command.output.length === 0 ? (
-                        <div className="text-zinc-500 italic">No output...</div>
-                    ) : (
-                        <div className="flex flex-col gap-0.5">
-                            {command.output.map((line: TerminalOutputLine, index: number) => (
-                                <div
-                                    key={index}
-                                    className={`whitespace-pre-wrap break-all leading-relaxed ${line.type === 'stderr' ? 'text-red-400' : 'text-zinc-200'
-                                        }`}
-                                >
-                                    <span dangerouslySetInnerHTML={{ __html: ansiToHtml(line.content) }} />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <>
+                    <div
+                        ref={outputRef}
+                        className="terminal-content p-4 font-mono text-sm overflow-auto bg-[#1e1e1e]"
+                        style={{ maxHeight: '350px', minHeight: '120px' }}
+                    >
+                        {(!command.output || command.output.length === 0) ? (
+                            <div className="text-zinc-500 italic">No output...</div>
+                        ) : (
+                            <div className="flex flex-col gap-0.5">
+                                {command.output.map((line: TerminalOutputLine, index: number) => (
+                                    <div
+                                        key={index}
+                                        className={`whitespace-pre-wrap break-all leading-relaxed ${line.type === 'stderr' ? 'text-red-400' : 'text-zinc-200'
+                                            }`}
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: ansiToHtml(line.content) }} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 px-4 py-2 bg-[#2d2d2d] border-t border-zinc-700/50">
+                        <button
+                            onClick={handleCopy}
+                            className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded transition-colors"
+                            title="Copy Terminal Output"
+                        >
+                            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                            <span>{copied ? 'Copied' : 'Copy'}</span>
+                        </button>
+
+                        {isRunning && onRelocate && (
+                            <button
+                                onClick={handleRelocate}
+                                className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded transition-colors"
+                                title="Open in Main Terminal"
+                            >
+                                <ExternalLink size={14} />
+                                <span>Relocate</span>
+                            </button>
+                        )}
+
+                        {isRunning && (
+                            <button
+                                onClick={handleCancel}
+                                className="flex items-center gap-1.5 px-2 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                            >
+                                <span>Stop</span>
+                            </button>
+                        )}
+                    </div>
+                </>
             )}
         </div>
     );

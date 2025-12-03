@@ -2,6 +2,33 @@
 
 import type { CommandIntent, ProjectContext } from './commandDetection';
 import { PROMPTS } from '../../../config/prompts';
+class BrowserPlatformCommands {
+    private static platform: string = 'linux';
+
+    static setPlatform(platform: string) {
+        this.platform = platform;
+    }
+
+    static convertToPlatformCommand(genericCommand: string): string {
+        let command = genericCommand;
+
+        if (this.platform === 'win32') {
+            command = command.replace(/\bcat\s+([^|]+)/g, 'type $1');
+            command = command.replace(/\brm\s+([^|&\n\r]*)$/gm, 'del $1');
+            command = command.replace(/\brm\s+-rf\s+([^|&\n\r]*)/g, 'rmdir /s /q $1');
+        } else {
+            command = command.replace(/\btype\s+([^|]+)/g, 'cat $1');
+            command = command.replace(/\bdel\s+([^|&\n\r]*)$/gm, 'rm $1');
+            command = command.replace(/\brmdir\s+\/s\s+\/q\s+([^|&\n\r]*)/g, 'rm -rf $1');
+        }
+
+        return command;
+    }
+}
+
+export const setPlatform = (platform: string) => {
+    BrowserPlatformCommands.setPlatform(platform);
+};
 
 export interface CommandAnalysisRequest {
     userQuery: string;
@@ -267,10 +294,12 @@ export function detectCommandByPattern(
         };
     }
 
-    if (lowerQuery.match(/^(delete|remove|rm)\s+/)) {
+    if (lowerQuery.match(/^(delete|remove|rm)\s+(?!the\b|a\b|an\b|from\b|in\b|to\b)[^\s]+/) && !lowerQuery.includes(' and ')) {
+        const command = BrowserPlatformCommands.convertToPlatformCommand(lowerQuery);
+
         return {
             type: 'remove',
-            command: lowerQuery,
+            command,
             requiresConfirmation: true,
             riskLevel: 'dangerous',
             originalMessage: query,

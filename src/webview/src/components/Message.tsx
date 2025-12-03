@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Pencil } from 'lucide-react';
@@ -23,6 +23,12 @@ export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, o
     const { stopCommand } = useTerminal();
     const { postMessage } = useVSCode();
     const isUser = role === 'user';
+
+    useEffect(() => {
+        if (commandId) {
+            console.log('🖥️ Message component received commandId:', commandId);
+        }
+    }, [commandId]);
 
     const handleEdit = () => {
         if (onEdit && messageIndex !== undefined) {

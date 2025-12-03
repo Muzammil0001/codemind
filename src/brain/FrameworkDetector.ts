@@ -1,31 +1,16 @@
-
-
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { DetectedFramework } from '../types';
 import { logger } from '../utils/logger';
-
+import { FRAMEWORKS } from '../constants/stacks';
 export class FrameworkDetector {
     async detectFrameworks(workspaceRoot: string): Promise<DetectedFramework[]> {
         const frameworks: DetectedFramework[] = [];
 
-        const detectors = [
-            this.detectNextJS.bind(this),
-            this.detectReact.bind(this),
-            this.detectVue.bind(this),
-            this.detectNuxt.bind(this),
-            this.detectExpress.bind(this),
-            this.detectNestJS.bind(this),
-            this.detectDjango.bind(this),
-            this.detectFastAPI.bind(this),
-            this.detectPrisma.bind(this),
-            this.detectTypeORM.bind(this)
-        ];
-
-        for (const detector of detectors) {
-            const framework = await detector(workspaceRoot);
-            if (framework) {
-                frameworks.push(framework);
+        for (const [frameworkName, frameworkDef] of Object.entries(FRAMEWORKS)) {
+            const detected = await this.detectFramework(workspaceRoot, frameworkName, frameworkDef);
+            if (detected) {
+                frameworks.push(detected);
             }
         }
 
@@ -33,218 +18,208 @@ export class FrameworkDetector {
         return frameworks;
     }
 
-    private async detectNextJS(root: string): Promise<DetectedFramework | null> {
-        const configFiles = ['next.config.js', 'next.config.ts', 'next.config.mjs'];
-
-        for (const configFile of configFiles) {
-            const configPath = path.join(root, configFile);
+    private async detectFramework(
+        workspaceRoot: string,
+        frameworkName: string,
+        frameworkDef: any
+    ): Promise<DetectedFramework | null> {
+        for (const configFile of frameworkDef.configFiles) {
+            const configPath = path.join(workspaceRoot, configFile);
             try {
                 await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
 
-                const hasAppDir = await this.fileExists(path.join(root, 'app'));
-                const hasPagesDir = await this.fileExists(path.join(root, 'pages'));
-
                 return {
-                    name: 'Next.js',
+                    name: frameworkName,
                     confidence: 0.95,
                     configFiles: [configFile],
-                    entryPoints: hasAppDir ? ['app'] : hasPagesDir ? ['pages'] : []
+                    entryPoints: [...frameworkDef.entryPoints],
+                    conventions: frameworkDef.conventions
                 };
             } catch {
                 continue;
             }
         }
 
-        return null;
-    }
+        if (frameworkDef.dependencies && frameworkDef.dependencies.length > 0) {
+            // Node.js , JavaScript frameworks
+            if (await this.fileExists(path.join(workspaceRoot, 'package.json'))) {
+                const packageJsonPath = path.join(workspaceRoot, 'package.json');
+                try {
+                    const content = await this.readFile(packageJsonPath);
+                    const packageJson = JSON.parse(content);
+                    const allDeps = { ...packageJson.dependencies, ...packageJson.devDependencies };
 
-    private async detectReact(root: string): Promise<DetectedFramework | null> {
-        const packageJsonPath = path.join(root, 'package.json');
-
-        try {
-            const content = await this.readFile(packageJsonPath);
-            const packageJson = JSON.parse(content);
-
-            if (packageJson.dependencies?.react || packageJson.devDependencies?.react) {
-                return {
-                    name: 'React',
-                    version: packageJson.dependencies?.react || packageJson.devDependencies?.react,
-                    confidence: 0.9,
-                    configFiles: ['package.json'],
-                    entryPoints: ['src']
-                };
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) => allDeps[dep]);
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.85,
+                            configFiles: ['package.json'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read package.json: ${err}`);
+                }
             }
-        } catch {
-        }
 
-        return null;
-    }
+            // Python
+            if (await this.fileExists(path.join(workspaceRoot, 'requirements.txt')) ||
+                await this.fileExists(path.join(workspaceRoot, 'pyproject.toml'))) {
 
-    private async detectVue(root: string): Promise<DetectedFramework | null> {
-        const configFiles = ['vue.config.js', 'vite.config.ts', 'vite.config.js'];
-
-        for (const configFile of configFiles) {
-            const configPath = path.join(root, configFile);
-            try {
-                await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
-
-                return {
-                    name: 'Vue.js',
-                    confidence: 0.9,
-                    configFiles: [configFile],
-                    entryPoints: ['src']
-                };
-            } catch {
-                continue;
+                const depFiles = ['requirements.txt', 'pyproject.toml', 'setup.py'];
+                for (const depFile of depFiles) {
+                    if (await this.fileExists(path.join(workspaceRoot, depFile))) {
+                        try {
+                            const content = await this.readFile(path.join(workspaceRoot, depFile));
+                            const hasDeps = frameworkDef.dependencies.some((dep: string) =>
+                                content.toLowerCase().includes(dep.toLowerCase())
+                            );
+                            if (hasDeps) {
+                                return {
+                                    name: frameworkName,
+                                    confidence: 0.8,
+                                    configFiles: [depFile],
+                                    entryPoints: [...frameworkDef.entryPoints],
+                                    conventions: frameworkDef.conventions
+                                };
+                            }
+                        } catch (err) {
+                            logger.warn(`Cannot read ${depFile}: ${err}`);
+                        }
+                    }
+                }
             }
-        }
 
-        return null;
-    }
+            // PHP , Composer frameworks
+            if (await this.fileExists(path.join(workspaceRoot, 'composer.json'))) {
+                const composerPath = path.join(workspaceRoot, 'composer.json');
+                try {
+                    const content = await this.readFile(composerPath);
+                    const composerJson = JSON.parse(content);
+                    const allDeps = { ...composerJson.require, ...composerJson['require-dev'] };
 
-    private async detectNuxt(root: string): Promise<DetectedFramework | null> {
-        const configFiles = ['nuxt.config.js', 'nuxt.config.ts'];
-
-        for (const configFile of configFiles) {
-            const configPath = path.join(root, configFile);
-            try {
-                await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
-
-                return {
-                    name: 'Nuxt.js',
-                    confidence: 0.95,
-                    configFiles: [configFile],
-                    entryPoints: ['pages', 'components']
-                };
-            } catch {
-                continue;
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) => allDeps[dep]);
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.85,
+                            configFiles: ['composer.json'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read composer.json: ${err}`);
+                }
             }
-        }
 
-        return null;
-    }
-
-    private async detectExpress(root: string): Promise<DetectedFramework | null> {
-        const packageJsonPath = path.join(root, 'package.json');
-
-        try {
-            const content = await this.readFile(packageJsonPath);
-            const packageJson = JSON.parse(content);
-
-            if (packageJson.dependencies?.express) {
-                return {
-                    name: 'Express',
-                    version: packageJson.dependencies.express,
-                    confidence: 0.85,
-                    configFiles: ['package.json'],
-                    entryPoints: ['src', 'server']
-                };
+            // Java , Maven frameworks
+            if (await this.fileExists(path.join(workspaceRoot, 'pom.xml'))) {
+                const pomPath = path.join(workspaceRoot, 'pom.xml');
+                try {
+                    const content = await this.readFile(pomPath);
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) =>
+                        content.toLowerCase().includes(dep.toLowerCase())
+                    );
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.8,
+                            configFiles: ['pom.xml'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read pom.xml: ${err}`);
+                }
             }
-        } catch {
-            logger.error('Failed to detect Express');
-        }
 
-        return null;
-    }
-
-    private async detectNestJS(root: string): Promise<DetectedFramework | null> {
-        const configFiles = ['nest-cli.json'];
-
-        for (const configFile of configFiles) {
-            const configPath = path.join(root, configFile);
-            try {
-                await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
-
-                return {
-                    name: 'NestJS',
-                    confidence: 0.95,
-                    configFiles: [configFile],
-                    entryPoints: ['src']
-                };
-            } catch {
-                continue;
+            // Go
+            if (await this.fileExists(path.join(workspaceRoot, 'go.mod'))) {
+                const goModPath = path.join(workspaceRoot, 'go.mod');
+                try {
+                    const content = await this.readFile(goModPath);
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) =>
+                        content.toLowerCase().includes(dep.toLowerCase())
+                    );
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.8,
+                            configFiles: ['go.mod'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read go.mod: ${err}`);
+                }
             }
-        }
 
-        return null;
-    }
-
-    private async detectDjango(root: string): Promise<DetectedFramework | null> {
-        const managePyPath = path.join(root, 'manage.py');
-
-        try {
-            const content = await this.readFile(managePyPath);
-            if (content.includes('django')) {
-                return {
-                    name: 'Django',
-                    confidence: 0.9,
-                    configFiles: ['manage.py'],
-                    entryPoints: []
-                };
+            // Rust
+            if (await this.fileExists(path.join(workspaceRoot, 'Cargo.toml'))) {
+                const cargoPath = path.join(workspaceRoot, 'Cargo.toml');
+                try {
+                    const content = await this.readFile(cargoPath);
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) =>
+                        content.toLowerCase().includes(dep.toLowerCase())
+                    );
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.8,
+                            configFiles: ['Cargo.toml'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read Cargo.toml: ${err}`);
+                }
             }
-        } catch {
-        }
 
-        return null;
-    }
-
-    private async detectFastAPI(root: string): Promise<DetectedFramework | null> {
-        const requirementsPath = path.join(root, 'requirements.txt');
-
-        try {
-            const content = await this.readFile(requirementsPath);
-            if (content.includes('fastapi')) {
-                return {
-                    name: 'FastAPI',
-                    confidence: 0.85,
-                    configFiles: ['requirements.txt'],
-                    entryPoints: []
-                };
-            }
-        } catch {
-        }
-
-        return null;
-    }
-
-    private async detectPrisma(root: string): Promise<DetectedFramework | null> {
-        const schemaPath = path.join(root, 'prisma', 'schema.prisma');
-
-        try {
-            await vscode.workspace.fs.stat(vscode.Uri.file(schemaPath));
-
-            return {
-                name: 'Prisma',
-                confidence: 0.95,
-                configFiles: ['prisma/schema.prisma'],
-                entryPoints: []
-            };
-        } catch {
-        }
-
-        return null;
-    }
-
-    private async detectTypeORM(root: string): Promise<DetectedFramework | null> {
-        const configFiles = ['ormconfig.json', 'ormconfig.js'];
-
-        for (const configFile of configFiles) {
-            const configPath = path.join(root, configFile);
-            try {
-                await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
-
-                return {
-                    name: 'TypeORM',
-                    confidence: 0.9,
-                    configFiles: [configFile],
-                    entryPoints: []
-                };
-            } catch {
-                continue;
+            // Ruby / Gemfile
+            if (await this.fileExists(path.join(workspaceRoot, 'Gemfile'))) {
+                const gemfilePath = path.join(workspaceRoot, 'Gemfile');
+                try {
+                    const content = await this.readFile(gemfilePath);
+                    const hasDeps = frameworkDef.dependencies.some((dep: string) =>
+                        content.toLowerCase().includes(dep.toLowerCase())
+                    );
+                    if (hasDeps) {
+                        return {
+                            name: frameworkName,
+                            confidence: 0.8,
+                            configFiles: ['Gemfile'],
+                            entryPoints: [...frameworkDef.entryPoints],
+                            conventions: frameworkDef.conventions
+                        };
+                    }
+                } catch (err) {
+                    logger.warn(`Cannot read Gemfile: ${err}`);
+                }
             }
         }
 
         return null;
+    }
+
+    getFrameworkConventions(frameworkName: string): any {
+        return FRAMEWORKS[frameworkName]?.conventions || null;
+    }
+
+
+    getAllConventions(): Record<string, any> {
+        const conventions: Record<string, any> = {};
+        for (const [name, framework] of Object.entries(FRAMEWORKS)) {
+            if (framework.conventions) {
+                conventions[name] = framework.conventions;
+            }
+        }
+        return conventions;
     }
 
     private async fileExists(filePath: string): Promise<boolean> {

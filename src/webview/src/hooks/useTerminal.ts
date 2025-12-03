@@ -1,52 +1,136 @@
 
 
-import { useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useVSCode } from './useVSCode';
 import { useTerminalStore, type TerminalCommand, type TerminalOutputLine } from '../stores/terminalStore';
-
-export type TerminalStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stopped';
 
 export type { TerminalCommand, TerminalOutputLine };
 
 export interface UseTerminalReturn {
-    commands: TerminalCommand[];
-    commandsMap: Record<string, TerminalCommand>;
-    executeCommand: (command: string, cwd?: string) => string;
+    commands: Record<string, TerminalCommand>;
+    executeCommand: (command: string, location?: 'chat' | 'main', cwd?: string) => string;
     stopCommand: (commandId: string) => void;
-    updateCommandStatus: (commandId: string, updates: Partial<TerminalCommand>) => void;
-    appendOutput: (commandId: string, content: string, type?: 'stdout' | 'stderr') => void;
-    clearCommand: (commandId: string) => void;
-    clearAllCommands: () => void;
+    getRunningCommands: () => void;
+    clearCompletedCommands: () => void;
 }
 
 export function useTerminal(): UseTerminalReturn {
     const { postMessage } = useVSCode();
-
     const commands = useTerminalStore(state => state.commands);
     const addCommand = useTerminalStore(state => state.addCommand);
     const updateCommand = useTerminalStore(state => state.updateCommand);
     const addOutput = useTerminalStore(state => state.addOutput);
     const clearCompleted = useTerminalStore(state => state.clearCompleted);
 
-    const executeCommand = useCallback((command: string, cwd?: string) => {
-        const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data;
 
-        const newCommand: TerminalCommand = {
-            id: commandId,
-            command,
-            cwd: cwd || '/workspace',
-            status: 'pending',
-            output: [],
-            startTime: Date.now(),
-            location: 'chat'
+            switch (message.type) {
+                case 'terminalCommandStarted':
+                    if (message.success && message.commandId) {
+                        const command: TerminalCommand = {
+                            id: message.commandId,
+                            command: message.command,
+                            cwd: message.cwd || '',
+                            status: 'running',
+                            startTime: Date.now(),
+                            output: [],
+                            location: message.location || 'chat'
+                        };
+                        addCommand(command);
+                    } else if (!message.success && message.commandId) {
+                        console.error('Failed to start terminal command:', message.error);
+                        const command: TerminalCommand = {
+                            id: message.commandId,
+                            command: message.command || 'Unknown command',
+                            cwd: message.cwd || '',
+                            status: 'failed',
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                            output: [],
+                            location: message.location || 'chat'
+                        };
+                        addCommand(command);
+                    }
+                    break;
+
+                case 'terminalOutput':
+                    addOutput(message.commandId, message.output);
+                    break;
+
+                case 'terminalStatus':
+                    if (!commands[message.commandId]) {
+                        addCommand({
+                            id: message.commandId,
+                            command: '',
+                            cwd: '',
+                            status: message.status,
+                            startTime: Date.now(),
+                            output: [],
+                            location: 'chat',
+                            pid: message.pid
+                        });
+                    } else {
+                        updateCommand(message.commandId, {
+                            status: message.status,
+                            pid: message.pid
+                        });
+                    }
+                    break;
+
+                case 'terminalComplete':
+                    updateCommand(message.commandId, {
+                        status: message.status,
+                        exitCode: message.exitCode,
+                        endTime: Date.now()
+                    });
+                    break;
+
+                case 'terminalCommandStopped':
+                    updateCommand(message.commandId, {
+                        status: 'stopped',
+                        endTime: Date.now()
+                    });
+                    break;
+
+                case 'runningCommands':
+                    if (message.commands && Array.isArray(message.commands)) {
+                        message.commands.forEach((cmd: TerminalCommand) => {
+                            addCommand(cmd);
+                        });
+                    }
+                    break;
+            }
         };
 
-        addCommand(newCommand);
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [addCommand, updateCommand, addOutput, commands]);
+
+    const executeCommand = useCallback((
+        command: string,
+        location: 'chat' | 'main' = 'chat',
+        cwd?: string
+    ) => {
+        const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const tempCommand: TerminalCommand = {
+            id: commandId,
+            command,
+            cwd: cwd || '',
+            status: 'pending',
+            startTime: Date.now(),
+            output: [],
+            location
+        };
+
+        addCommand(tempCommand);
 
         postMessage({
-            type: 'runCommand',
+            type: 'executeTerminalCommand',
             command,
             cwd,
+            location,
             commandId
         });
 
@@ -55,48 +139,22 @@ export function useTerminal(): UseTerminalReturn {
 
     const stopCommand = useCallback((commandId: string) => {
         postMessage({
-            type: 'stopCommand',
+            type: 'stopTerminalCommand',
             commandId
         });
     }, [postMessage]);
 
-    const updateCommandStatus = useCallback((
-        commandId: string,
-        updates: Partial<TerminalCommand>
-    ) => {
-        updateCommand(commandId, updates);
-    }, [updateCommand]);
-
-    const appendOutput = useCallback((
-        commandId: string,
-        content: string,
-        type: 'stdout' | 'stderr' = 'stdout'
-    ) => {
-        const newLine: TerminalOutputLine = {
-            content,
-            type,
-            timestamp: Date.now()
-        };
-        addOutput(commandId, newLine);
-    }, [addOutput]);
-
-    const clearCommand = useCallback((commandId: string) => {
-        updateCommand(commandId, { status: 'stopped' });
-    }, [updateCommand]);
-
-    const clearAllCommands = useCallback(() => {
-        clearCompleted();
-    }, [clearCompleted]);
+    const getRunningCommands = useCallback(() => {
+        postMessage({
+            type: 'getRunningCommands'
+        });
+    }, [postMessage]);
 
     return {
-        commands: Object.values(commands),
-        commandsMap: commands,
+        commands,
         executeCommand,
         stopCommand,
-        updateCommandStatus,
-        appendOutput,
-        clearCommand,
-        clearAllCommands
+        getRunningCommands,
+        clearCompletedCommands: clearCompleted
     };
 }
-

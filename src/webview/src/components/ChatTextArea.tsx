@@ -5,6 +5,9 @@ interface ChatTextAreaProps {
     onChange: (value: string) => void;
     onKeyDown: (e: React.KeyboardEvent) => void;
     onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+    onDragOver?: (e: React.DragEvent<HTMLTextAreaElement>) => void;
+    onDragEnter?: (e: React.DragEvent<HTMLTextAreaElement>) => void;
+    onDrop?: (e: React.DragEvent<HTMLTextAreaElement>) => void;
     disabled: boolean;
     placeholder?: string;
 }
@@ -14,6 +17,9 @@ export const ChatTextArea: React.FC<ChatTextAreaProps> = ({
     onChange,
     onKeyDown,
     onPaste,
+    onDragOver,
+    onDragEnter,
+    onDrop,
     disabled,
     placeholder = "Ask anything about your code... (Type @ for files, / for commands, paste files)"
 }) => {
@@ -39,6 +45,9 @@ export const ChatTextArea: React.FC<ChatTextAreaProps> = ({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         onPaste={onPaste}
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
+        onDrop={onDrop}
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
