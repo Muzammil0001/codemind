@@ -111,7 +111,8 @@
         {
           "type": "webview",
           "id": "codemind.panel",
-          "name": "Dashboard"
+          "name": "Dashboard",
+          "retainContextWhenHidden": true
         }
       ]
     },
