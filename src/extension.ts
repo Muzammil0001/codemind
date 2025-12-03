@@ -54,6 +54,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
         showWelcomeMessage(context);
 
+        // Automatically open the sidebar to show the last chat
+        setTimeout(() => {
+            vscode.commands.executeCommand('codemind.openPanel');
+        }, 1000);
+
         logger.info('CodeMind AI extension activated successfully');
     } catch (error) {
         logger.error('Failed to activate extension', error as Error);
@@ -310,7 +315,7 @@ async function initializeAI() {
             .filter(([_, isAvailable]) => isAvailable)
             .map(([provider, _]) => provider);
 
-        if (available.length === 0) {
+        if (available?.length === 0) {
             vscode.window.showWarningMessage(
                 'No AI providers available. Please configure API keys in settings.'
             );
