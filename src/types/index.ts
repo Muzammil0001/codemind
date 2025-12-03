@@ -178,6 +178,7 @@ export interface ProjectStructure {
     name: string;
     type: 'monorepo' | 'single' | 'mixed' | 'unknown';
     languages: string[];
+    frameworks: DetectedFramework[];
     folders: FolderInfo[];
     frontendPaths: string[];
     backendPaths: string[];
@@ -203,6 +204,11 @@ export interface DetectedFramework {
     confidence: number;
     configFiles: string[];
     entryPoints: string[];
+    conventions?: {
+        description: string;
+        patterns: Record<string, string[]>;
+        specialRules?: string[];
+    };
 }
 
 export interface CodeStyle {
@@ -259,6 +265,7 @@ export interface AgentResult {
     filesDeleted: string[];
     suggestions: string[];
     warnings: string[];
+    commandIds?: string[]; // Terminal command IDs for tracking output
     metrics: {
         tokensUsed: number;
         latency: number;
