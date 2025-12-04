@@ -67,7 +67,7 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     // Google Gemini Models (Free Tier)
     'gemini-pro': {
         id: 'gemini-pro',
-        provider: 'gemini',
+        provider: 'google',
         name: 'Gemini Pro',
         contextWindow: 32768,
         capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring', 'documentation', 'vision'],

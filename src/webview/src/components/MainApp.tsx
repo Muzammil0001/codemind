@@ -455,7 +455,7 @@ export const MainApp = () => {
         setSelectedModel(model);
 
         let provider = '';
-        if (model.startsWith('gemini')) provider = 'gemini';
+        if (model.startsWith('gemini')) provider = 'google';
         else if (model.startsWith('gpt')) provider = 'openai';
         else if (model.startsWith('claude')) provider = 'anthropic';
         else if (model.startsWith('deepseek')) provider = 'deepseek';

@@ -11,7 +11,7 @@ export class GeminiProvider extends BaseProvider {
     constructor(apiKey?: string) {
         const trimmedKey = apiKey?.trim();
 
-        super('gemini', trimmedKey);
+        super('google', trimmedKey);
 
         if (trimmedKey) {
             logger.info(`Gemini provider initializing with API key: ${trimmedKey.substring(0, 10)}...`);

@@ -1,6 +1,66 @@
 {
   "sessions": [
     {
+      "id": "1764864639287",
+      "title": "helo",
+      "timestamp": 1764864660008,
+      "messages": [
+        {
+          "role": "user",
+          "content": "helo",
+          "id": "1764864645902",
+          "timestamp": 1764864645902
+        },
+        {
+          "role": "ai",
+          "content": "It looks like you're asking for typical `package.json` script configurations for a VS Code extension project, based on the script names you've provided. These scripts automate common development tasks such as building, watching, linting, testing, and packaging your extension.\n\nI'll create a `package.json` file with a `scripts` section, outlining common commands for each of the tasks you mentioned. I'll include comments to explain the purpose of each script and the assumptions made regarding tools (e.g., TypeScript compiler `tsc`, `eslint`, `mocha` or `jest` for testing, `vsce` for packaging, and a separate `webview` directory).\n\nHere's the generated code for a `package.json` file:\n\n**Created 1 file(s):**\n\n[package.json](./package.json) - `./package.json`",
+          "id": "1764864658423",
+          "timestamp": 1764864658423
+        }
+      ],
+      "preview": "It looks like you're asking for typical `package.json` script configurations for a VS Code extension"
+    },
+    {
+      "id": "1764864526344",
+      "title": "hello",
+      "timestamp": 1764864544256,
+      "messages": [
+        {
+          "role": "user",
+          "content": "hello",
+          "id": "1764864538321",
+          "timestamp": 1764864538321
+        },
+        {
+          "role": "ai",
+          "content": "Hello! It looks like you've provided a list of scripts typically found in a `package.json` file for a VS Code extension project. These scripts cover tasks like pre-publishing, building the extension and its webview, watching for changes, compiling, linting, testing (unit and integration), and packaging.\n\nTo help you, please tell me what specific task you'd like to perform. For example, are you looking to:\n\n*   **Explain** what each of these scripts does?\n*   **Modify** one of these scripts?\n*   **Add a new script** to `package.json`?\n*   **Generate code for a specific part** of the extension (e.g., a webview component, a command handler)?\n*   **Refactor** existing code related to these scripts?\n\nOnce you provide more details, I can assist you with generating or modifying the relevant code.",
+          "id": "1764864543221",
+          "timestamp": 1764864543221
+        }
+      ],
+      "preview": "Hello! It looks like you've provided a list of scripts typically found in a `package.json` file for "
+    },
+    {
+      "id": "1764863936342",
+      "title": "Hello",
+      "timestamp": 1764863959472,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello",
+          "id": "1764863951241",
+          "timestamp": 1764863951241
+        },
+        {
+          "role": "ai",
+          "content": "The script names suggest a VS Code extension project. To generate the appropriate code, I need more context.\n\nCould you please clarify what type of code you'd like me to generate for these scripts? For example, are you looking for:\n\n1.  A `scripts` section for a `package.json` file?\n2.  The actual build/test/watch script files themselves (e.g., shell scripts)?\n3.  Configuration files for specific tools (e.g., `webpack.config.js`, `tsconfig.json`) that these scripts would use?\n\nOnce I have more details, I can proceed with generating the code following best practices and error handling.",
+          "id": "1764863958445",
+          "timestamp": 1764863958445
+        }
+      ],
+      "preview": "The script names suggest a VS Code extension project. To generate the appropriate code, I need more "
+    },
+    {
       "id": "1764791128422",
       "title": "run a frontend build",
       "timestamp": 1764791231701,
@@ -1593,120 +1653,6 @@
         }
       ],
       "preview": ""
-    },
-    {
-      "id": "1764356010446",
-      "title": "remove the OTPinput.tsx file",
-      "timestamp": 1764356276809,
-      "messages": [
-        {
-          "role": "user",
-          "content": "remove the OTPinput.tsx file",
-          "id": "1764356031525",
-          "timestamp": 1764356031525
-        },
-        {
-          "role": "user",
-          "content": "remove the OTPinput.tsx file",
-          "id": "1764356036206",
-          "timestamp": 1764356036206
-        },
-        {
-          "role": "ai",
-          "content": "",
-          "commandId": "cmd_1764356036206_qenzs6r2l",
-          "steps": [
-            {
-              "id": "cmd-exec",
-              "title": "Executing Terminal Command",
-              "description": "remove the otpinput.tsx file",
-              "status": "running"
-            }
-          ],
-          "id": "1764356036206",
-          "timestamp": 1764356036206
-        }
-      ],
-      "preview": ""
-    },
-    {
-      "id": "1764355681742",
-      "title": "Create a OTP compomnt in frontend react project wh...",
-      "timestamp": 1764355907979,
-      "messages": [
-        {
-          "role": "user",
-          "content": "Create a OTP compomnt in frontend react project where user can add 6 digit OTP code and submit it, use tailwind css, and handle all types\n",
-          "id": "1764355683515",
-          "timestamp": 1764355683515
-        },
-        {
-          "role": "ai",
-          "content": "I'll create an `OTPInput` component in `src/components/OTPInput.tsx` for your React frontend project. This component will allow users to enter a 6-digit OTP, style it with Tailwind CSS, and handle input and submission.\n\n```json\n{\n  \"operation\": \"create\",\n  \"path\": \"src/components/OTPInput.tsx\",\n  \"content\": \"import React, { useState, useRef, ChangeEvent, KeyboardEvent, useEffect } from 'react';\\n\\ninterface OTPInputProps {\\n  length?: number;\\n  onComplete: (otp: string) => void;\\n  // You can add more props like `isLoading`, `error`, etc.\\n}\\n\\nconst OTPInput: React.FC<OTPInputProps> = ({\\n  length = 6,\\n  onComplete,\\n}) => {\\n  const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));\\n  const [error, setError] = useState<string | null>(null);\\n  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);\\n\\n  useEffect(() => {\\n    if (inputRefs.current[0]) {\\n      inputRefs.current[0].focus();\\n    }\\n  }, []);\\n\\n  const handleChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {\\n    const value = e.target.value;\\n    // Allow only single digit numbers\\n    if (!/^[0-9]$/.test(value) && value !== '') {\\n      return; // Do not update if not a digit or empty\\n    }\\n\\n    const newOtp = [...otp];\\n    newOtp[index] = value;\\n    setOtp(newOtp);\\n    setError(null); // Clear error on new input\\n\\n    // Move focus to the next input if a digit was entered and it's not the last input\\n    if (value !== '' && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    } else if (value === '' && index > 0) {\\n      // Optionally move focus back if digit is cleared\\n      // inputRefs.current[index - 1]?.focus();\\n    }\\n  };\\n\\n  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {\\n    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {\\n      e.preventDefault(); // Prevent default backspace behavior (e.g., navigating back in browser)\\n      const newOtp = [...otp];\\n      newOtp[index - 1] = ''; // Clear the previous input\\n      setOtp(newOtp);\\n      inputRefs.current[index - 1]?.focus(); // Move focus to the previous input\\n    } else if (e.key === 'ArrowLeft' && index > 0) {\\n      inputRefs.current[index - 1]?.focus();\\n    } else if (e.key === 'ArrowRight' && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    }\\n  };\\n\\n  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {\\n    e.preventDefault();\\n    const pasteData = e.clipboardData.getData('text').trim();\\n\\n    // Check if the pasted data is a valid OTP (e.g., all digits and correct length)\\n    if (/^\\\\d+$/.test(pasteData) && pasteData.length === length) {\\n      const newOtp = pasteData.split('');\\n      setOtp(newOtp);\\n      setError(null);\\n      // Optionally, automatically submit or focus elsewhere after paste\\n      inputRefs.current[length - 1]?.focus();\\n    } else {\\n      setError(`Please paste a ${length}-digit numeric code.`);\\n    }\\n  };\\n\\n  const handleSubmit = (e: React.FormEvent) => {\\n    e.preventDefault();\\n    const fullOtp = otp.join('');\\n\\n    if (fullOtp.length === length && /^\\\\d+$/.test(fullOtp)) {\\n      setError(null);\\n      onComplete(fullOtp);\\n    } else {\\n      setError(`Please enter a complete ${length}-digit OTP.`);\\n    }\\n  };\\n\\n  return (\\n    <div className=\\\"flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4\\\">\\n      <div className=\\\"bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md max-w-sm w-full\\\">\\n        <h2 className=\\\"text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center\\\">Enter OTP</h2>\\n        <form onSubmit={handleSubmit}>\\n          <div className=\\\"flex justify-center space-x-2 mb-6\\\">\\n            {otp.map((digit, index) => (\\n              <input\\n                key={index}\\n                type=\\\"text\\\"\\n                inputMode=\\\"numeric\\\"\\n                pattern=\\\"[0-9]\\\"\\n                maxLength={1}\\n                value={digit}\\n                onChange={(e) => handleChange(e, index)}\\n                onKeyDown={(e) => handleKeyDown(e, index)}\\n                onPaste={index === 0 ? handlePaste : undefined}\\n                ref={(el) => (inputRefs.current[index] = el)}\\n                className={`w-12 h-12 text-center text-2xl font-bold border rounded-md\\n                           focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400\\n                           ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}\\n                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white\\n                           transition duration-150 ease-in-out\\n                          `}\\n              />\\n            ))}\\n          </div>\\n\\n          {error && (\\n            <p className=\\\"text-red-500 text-sm mb-4 text-center dark:text-red-400\\\">\\n              {error}\\n            </p>\\n          )}\\n\\n          <button\\n            type=\\\"submit\\\"\\n            className=\\\"w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-md\\n                       hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2\\n                       dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-900\\n                       transition duration-150 ease-in-out\\n                       disabled:opacity-50 disabled:cursor-not-allowed\\\"\\n            disabled={otp.some(d => d === '')}\\n          >\\n            Verify OTP\\n          </button>\\n        </form>\\n      </div>\\n    </div>\\n  );\\n};\\n\\nexport default OTPInput;\\n\"\n}\n```\n\n### 📝 Modified Files\n- **[OTPInput.tsx](src/components/OTPInput.tsx)**",
-          "id": "1764355698662",
-          "timestamp": 1764355698662
-        },
-        {
-          "role": "user",
-          "content": "Delete the OTPinput.tsx file",
-          "id": "1764355897980",
-          "timestamp": 1764355897980
-        },
-        {
-          "role": "user",
-          "content": "Delete the OTPinput.tsx file",
-          "id": "1764355906960",
-          "timestamp": 1764355906960
-        },
-        {
-          "role": "ai",
-          "content": "",
-          "commandId": "cmd_1764355906959_gek0nvbe8",
-          "steps": [
-            {
-              "id": "cmd-exec",
-              "title": "Executing Terminal Command",
-              "description": "delete the otpinput.tsx file",
-              "status": "running"
-            }
-          ],
-          "id": "1764355906960",
-          "timestamp": 1764355906960
-        }
-      ],
-      "preview": ""
-    },
-    {
-      "id": "1764354064656",
-      "title": "Create a OTP compomnt in frontend react project wh...",
-      "timestamp": 1764355674568,
-      "messages": [
-        {
-          "role": "user",
-          "content": "Create a OTP compomnt in frontend react project where user can add 6 digit OTP code and submit it, use tailwind css, and handle all types",
-          "id": "1764354087552",
-          "timestamp": 1764354087552
-        },
-        {
-          "role": "ai",
-          "content": "I'll create an `OtpInput` React component. Assuming a standard React project structure for a frontend React project, I'll place it in `src/components/OtpInput.tsx`. This component will allow users to input a 6-digit OTP, include basic validation, handle paste functionality, and be styled with Tailwind CSS, along with TypeScript types.\n\n```json\n{\n  \"operation\": \"create\",\n  \"path\": \"src/components/OtpInput.tsx\",\n  \"content\": \"import React, { useState, useRef, ChangeEvent, KeyboardEvent } from 'react';\\n\\ninterface OtpInputProps {\\n  length?: number;\\n  onSubmit: (otp: string) => void;\\n  isLoading?: boolean;\\n  error?: string;\\n}\\n\\nconst OtpInput: React.FC<OtpInputProps> = ({\\n  length = 6,\\n  onSubmit,\\n  isLoading = false,\\n  error,\\n}) => {\\n  const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));\\n  const inputRefs = useRef<Array<HTMLInputElement | null>>(\\n    new Array(length).fill(null)\\n  );\\n\\n  const handleChange = (\\n    e: ChangeEvent<HTMLInputElement>,\\n    index: number\\n  ): void => {\\n    const value = e.target.value;\\n    if (!/^\\\\d*$/.test(value)) return; // Allow only digits\\n\\n    const newOtp = [...otp];\\n    newOtp[index] = value.slice(-1); // Take only the last character if multiple are typed\\n\\n    setOtp(newOtp);\\n\\n    // Focus next input if a digit was entered and it's not the last input\\n    if (value && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    }\\n  };\\n\\n  const handleKeyDown = (\\n    e: KeyboardEvent<HTMLInputElement>,\\n    index: number\\n  ): void => {\\n    // Move to previous input on backspace if current is empty or if at the start\\n    if (e.key === 'Backspace' && (!otp[index] || e.currentTarget.selectionStart === 0) && index > 0) {\\n      e.preventDefault(); // Prevent default backspace behavior if we are handling movement\\n      inputRefs.current[index - 1]?.focus();\\n      const newOtp = [...otp];\\n      newOtp[index - 1] = ''; // Clear the previous input when moving back\\n      setOtp(newOtp);\\n    } else if (e.key === 'Backspace' && otp[index] && e.currentTarget.selectionStart === 1) {\\n        // If there's a digit and cursor is at end, backspace clears it.\\n        // If cursor is at start and there's a digit, backspace clears current\\n        const newOtp = [...otp];\\n        newOtp[index] = '';\\n        setOtp(newOtp);\\n    }\\n\\n    // Handle arrow keys for navigation\\n    if (e.key === 'ArrowLeft' && index > 0) {\\n      inputRefs.current[index - 1]?.focus();\\n    }\\n    if (e.key === 'ArrowRight' && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    }\\n    // If a digit is pressed and current input is full, move to next\\n    if (/^\\\\d$/.test(e.key) && otp[index] !== '' && index < length - 1) {\\n        e.preventDefault(); // Prevent typing in the current full input\\n        inputRefs.current[index + 1]?.focus();\\n        const newOtp = [...otp];\\n        newOtp[index + 1] = e.key; // Place the digit in the next input\\n        setOtp(newOtp);\\n    }\\n  };\\n\\n  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>): void => {\\n    e.preventDefault();\\n    const pastedData = e.clipboardData\\n      .getData('text/plain')\\n      .trim()\\n      .slice(0, length); // Get data, trim, and slice to OTP length\\n\\n    const newOtp = new Array(length).fill('');\\n    let pasteIndex = 0;\\n    for (let i = 0; i < pastedData.length; i++) {\\n      if (/^\\\\d$/.test(pastedData[i])) {\\n        newOtp[pasteIndex++] = pastedData[i];\\n      }\\n    }\\n    setOtp(newOtp);\\n\\n    // Focus the last filled input or the last input if all are filled\\n    const lastFilledIndex = Math.min(pasteIndex === 0 ? 0 : pasteIndex - 1, length - 1);\\n    inputRefs.current[lastFilledIndex]?.focus();\\n  };\\n\\n  const handleSubmit = (): void => {\\n    const fullOtp = otp.join('');\\n    if (fullOtp.length === length) {\\n      onSubmit(fullOtp);\\n    } else {\\n      // This case should ideally be prevented by button `disabled` state,\\n      // but good for explicit handling or if length changes dynamically.\\n      console.log('OTP is not complete. Please enter all digits.');\\n    }\\n  };\\n\\n  const isOtpComplete = otp.every((digit) => digit !== '');\\n\\n  return (\\n    <div className=\\\"flex flex-col items-center space-y-4 p-6 rounded-lg shadow-xl bg-white max-w-sm mx-auto border border-gray-200\\\">\\n      <p className=\\\"text-gray-800 text-2xl font-semibold mb-2\\\">Enter OTP</p>\\n      <div className=\\\"flex space-x-3 mb-4\\\">\\n        {otp.map((digit, index) => (\\n          <input\\n            key={index}\\n            type=\\\"text\\\" // Use 'text' to allow string manipulation, but handle numeric input\\n            maxLength={1}\\n            value={digit}\\n            onChange={(e) => handleChange(e, index)}\\n            onKeyDown={(e) => handleKeyDown(e, index)}\\n            onPaste={handlePaste}\\n            ref={(el) => (inputRefs.current[index] = el)}\\n            className=\\\"w-14 h-14 text-center text-3xl font-extrabold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 focus:ring-2 transition-all duration-200 outline-none shadow-sm\\\"\\n            inputMode=\\\"numeric\\\" // Hint for mobile keyboards\\n            pattern=\\\"[0-9]\\\" // HTML5 pattern for validation\\n            autoComplete=\\\"one-time-code\\\" // Autocomplete for OTP fields\\n            aria-label={`OTP digit ${index + 1}`}\\n          />\\n        ))}\\n      </div>\\n      {error && <p className=\\\"text-red-600 text-sm mt-2 font-medium\\\">{error}</p>}\\n      <button\\n        onClick={handleSubmit}\\n        disabled={!isOtpComplete || isLoading}\\n        className={`w-full py-3 px-4 rounded-lg text-white font-bold text-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50\\n          ${\\n            !isOtpComplete || isLoading\\n              ? 'bg-blue-400 cursor-not-allowed'\\n              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'\\n          }\\n        `}\\n      >\\n        {isLoading ? (\\n          <div className=\\\"flex items-center justify-center\\\">\\n            <svg className=\\\"animate-spin h-5 w-5 mr-3 text-white\\\" xmlns=\\\"http://www.w3.org/2000/svg\\\" fill=\\\"none\\\" viewBox=\\\"0 0 24 24\\\">\\n              <circle className=\\\"opacity-25\\\" cx=\\\"12\\\" cy=\\\"12\\\" r=\\\"10\\\" stroke=\\\"currentColor\\\" strokeWidth=\\\"4\\\"></circle>\\n              <path className=\\\"opacity-75\\\" fill=\\\"currentColor\\\" d=\\\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z\\\"></path>\\n            </svg>\\n            Submitting...\\n          </div>\\n        ) : (\\n          'Verify OTP'\\n        )}\\n      </button>\\n    </div>\\n  );\\n};\\n\\nexport default OtpInput;\\n\"\n}\n```\n\n### 📝 Modified Files\n- **[OtpInput.tsx](src/components/OtpInput.tsx)**",
-          "id": "1764354111530",
-          "timestamp": 1764354111530
-        },
-        {
-          "role": "user",
-          "content": "@src/components/OtpInput.tsx is contains errors fix it",
-          "id": "1764354937909",
-          "timestamp": 1764354937909
-        },
-        {
-          "role": "ai",
-          "content": "I'll create the `OtpInput` component for your frontend React project. This robust implementation handles digit-only input, automatic focus navigation, paste functionality, and calls the `onComplete` callback when all digits are correctly entered.\n\n```json\n{\n  \"operation\": \"create\",\n  \"path\": \"src/components/OtpInput.tsx\",\n  \"content\": \"import React, { useState, useRef, ChangeEvent, KeyboardEvent } from 'react';\\n\\ninterface OtpInputProps {\\n  length?: number; // Default to 6\\n  onComplete: (otp: string) => void;\\n  disabled?: boolean;\\n}\\n\\nconst OtpInput: React.FC<OtpInputProps> = ({ length = 6, onComplete, disabled = false }) => {\\n  const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));\\n  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);\\n\\n  const handleChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {\\n    const value = e.target.value;\\n    // Only allow digits\\n    if (/[^0-9]/.test(value)) return;\\n\\n    const newOtp = [...otp];\\n    // Take only the last character if multiple are pasted or typed very fast\\n    newOtp[index] = value.slice(-1);\\n    setOtp(newOtp);\\n\\n    // Move focus to next input if a digit was entered and it's not the last input\\n    if (value && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    } else if (newOtp.every(digit => digit !== '')) {\\n      // If all digits are filled and it's the last input, trigger onComplete\\n      onComplete(newOtp.join(''));\\n    }\\n  };\\n\\n  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {\\n    // Move focus to previous input on backspace if current input is empty\\n    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {\\n      e.preventDefault(); // Prevent default backspace behavior (e.g., navigating back in browser)\\n      inputRefs.current[index - 1]?.focus();\\n      // Clear the previous input as well\\n      const newOtp = [...otp];\\n      newOtp[index - 1] = ''; \\n      setOtp(newOtp);\\n    } else if (e.key === 'ArrowLeft' && index > 0) {\\n      inputRefs.current[index - 1]?.focus();\\n    } else if (e.key === 'ArrowRight' && index < length - 1) {\\n      inputRefs.current[index + 1]?.focus();\\n    } else if (e.key === 'Delete' && otp[index] !== '') { // Handle delete key\\n        const newOtp = [...otp];\\n        newOtp[index] = '';\\n        setOtp(newOtp);\\n    }\\n  };\\n\\n  // Handle paste event\\n  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {\\n    e.preventDefault();\\n    const pasteData = e.clipboardData.getData('text/plain').trim();\\n    if (!/^[0-9]+$/.test(pasteData) || pasteData.length > length) {\\n      // If data is not numeric or too long, don't paste\\n      return;\\n    }\\n\\n    const newOtp = pasteData.split('').slice(0, length);\\n    // Fill the remaining spots with empty strings if pasted data is shorter than length\\n    while (newOtp.length < length) {\\n      newOtp.push('');\\n    }\\n    setOtp(newOtp);\\n\\n    // Move focus to the last filled input or the next available\\n    const lastFilledIndex = Math.min(newOtp.length - 1, length - 1);\\n    inputRefs.current[lastFilledIndex]?.focus();\\n\\n    // If all digits are filled after paste, trigger onComplete\\n    if (newOtp.every(digit => digit !== '')) {\\n      onComplete(newOtp.join(''));\\n    }\\n  };\\n\\n  return (\\n    <div style={{ display: 'flex', gap: '8px' }}>\\n      {otp.map((digit, index) => (\\n        <input\\n          key={index}\\n          type=\\\"text\\\" // Use text to control input more easily, then enforce number\\n          maxLength={1}\\n          value={digit}\\n          onChange={(e) => handleChange(e, index)}\\n          onKeyDown={(e) => handleKeyDown(e, index)}\\n          onPaste={handlePaste}\\n          ref={(el) => (inputRefs.current[index] = el)}\\n          disabled={disabled}\\n          style={{\\n            width: '40px',\\n            height: '40px',\\n            textAlign: 'center',\\n            fontSize: '1.5em',\\n            border: '1px solid #ccc',\\n            borderRadius: '4px',\\n            outline: 'none',\\n            ...(disabled && { background: '#f0f0f0', cursor: 'not-allowed' }),\\n          }}\\n          // Auto-focus the first input on mount if not disabled\\n          autoFocus={index === 0 && !disabled}\\n          inputMode=\\\"numeric\\\" // Hint for mobile keyboards\\n          pattern=\\\"[0-9]\\\" // For better mobile keyboard experience and validation\\n        />\\n      ))}\\n    </div>\\n  );\\n};\\n\\nexport default OtpInput;\\n\"\n}\n```\n\n### 📝 Modified Files\n- **[OtpInput.tsx](src/components/OtpInput.tsx)**",
-          "id": "1764354962057",
-          "timestamp": 1764354962057
-        }
-      ],
-      "preview": "I'll create the `OtpInput` component for your frontend React project. This robust implementation han"
     }
   ]
 }

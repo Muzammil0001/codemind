@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 export type ModelProvider =
     | 'groq'
     | 'deepseek'
-    | 'gemini'
+    | 'google'
     | 'openai'
     | 'anthropic'
     | 'xai'

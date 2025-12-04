@@ -121,24 +121,32 @@
       "properties": {
         "codemind.primaryModel": {
           "type": "string",
-          "default": "chatgpt-4",
+          "default": "gpt-4o-mini",
           "enum": [
-            "chatgpt-4",
-            "chatgpt-3.5",
-            "gemini-flash",
+            "gpt-4o-mini",
+            "gpt-4.1",
             "gemini-pro",
-            "claude-sonnet",
+            "claude-haiku",
             "deepseek-coder",
-            "groq-llama-3.1-70b"
+            "deepseek-chat",
+            "groq-llama-3.1-70b",
+            "groq-mixtral-8x7b",
+            "groq-llama-3.1-8b",
+            "ollama-local",
+            "lmstudio-local"
           ],
           "enumDescriptions": [
-            "GPT-4o - Most capable (Recommended)",
-            "GPT-3.5 Turbo - Fast and efficient",
-            "Gemini 2.5 Flash - Lightning fast",
-            "Gemini 2.0 Pro - Google's advanced model",
-            "Claude 3.5 Sonnet - Excellent reasoning",
-            "DeepSeek V3 - Specialized for coding",
-            "Groq Llama 3.1 70B - Large open model"
+            "GPT-4o Mini - Fast & Cost-effective",
+            "GPT-4.1 - High Intelligence",
+            "Gemini Pro - Google's Capable Model",
+            "Claude Haiku - Fast & Efficient",
+            "DeepSeek Coder - Optimized for Coding",
+            "DeepSeek Chat - General Purpose",
+            "Groq LLaMA 3.1 70B - High Speed",
+            "Groq Mixtral 8x7B - High Performance",
+            "Groq LLaMA 3.1 8B - Extremely Fast",
+            "Ollama (Local) - Run models locally",
+            "LM Studio (Local) - Run models locally"
           ],
           "description": "Primary AI model to use for code generation"
         },

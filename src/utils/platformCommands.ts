@@ -59,7 +59,7 @@ export class PlatformCommands {
             case 'win32': return 'windows';
             case 'darwin': return 'macos';
             case 'linux': return 'linux';
-            default: return 'linux'; 
+            default: return 'linux';
         }
     }
 }

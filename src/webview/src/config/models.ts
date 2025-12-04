@@ -2,7 +2,7 @@ export interface ModelConfig {
     value: string;
     label: string;
     badge: 'Recommended' | 'Fast' | 'Coding' | 'Advanced' | 'Local' | null;
-    provider: 'openai' | 'google' | 'anthropic' | 'deepseek' | 'groq';
+    provider: | 'groq' | 'deepseek' | 'google' | 'openai' | 'anthropic' | 'xai' | 'ollama' | 'lmstudio';
     apiKeyRequired: boolean;
 }
 
@@ -22,15 +22,8 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
         apiKeyRequired: true,
     },
     {
-        value: 'gpt-3.5',
-        label: 'GPT-3.5 Free',
-        badge: null,
-        provider: 'openai',
-        apiKeyRequired: true,
-    },
-    {
         value: 'gemini-pro',
-        label: 'Gemini 2.0 Pro',
+        label: 'Gemini Pro',
         badge: null,
         provider: 'google',
         apiKeyRequired: true,
@@ -44,15 +37,36 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
     },
     {
         value: 'deepseek-coder',
-        label: 'DeepSeek V3',
+        label: 'DeepSeek Coder',
         badge: 'Coding',
         provider: 'deepseek',
         apiKeyRequired: true,
     },
     {
-        value: 'groq-llama-3.1-70b',
-        label: 'Groq Llama 3.1 70B',
+        value: 'deepseek-chat',
+        label: 'DeepSeek Chat',
         badge: null,
+        provider: 'deepseek',
+        apiKeyRequired: true,
+    },
+    {
+        value: 'groq-llama-3.1-70b',
+        label: 'LLaMA 3.1 70B',
+        badge: 'Fast',
+        provider: 'groq',
+        apiKeyRequired: true,
+    },
+    {
+        value: 'groq-mixtral-8x7b',
+        label: 'Mixtral 8x7B',
+        badge: null,
+        provider: 'groq',
+        apiKeyRequired: true,
+    },
+    {
+        value: 'groq-llama-3.1-8b',
+        label: 'LLaMA 3.1 8B',
+        badge: 'Fast',
         provider: 'groq',
         apiKeyRequired: true,
     },

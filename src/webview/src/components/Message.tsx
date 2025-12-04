@@ -7,6 +7,7 @@ import { useTerminal } from '../hooks/useTerminal';
 import { TerminalOutput } from './TerminalOutput';
 import { useVSCode } from '../hooks/useVSCode';
 import { ExecutionSteps, type Step } from './ExecutionSteps';
+import { useTerminalStore } from '../stores/terminalStore';
 
 interface MessageProps {
     role: 'user' | 'ai';
@@ -23,7 +24,10 @@ export const Message: React.FC<MessageProps> = ({ role, content, messageIndex, o
     const { stopCommand } = useTerminal();
     const { postMessage } = useVSCode();
     const isUser = role === 'user';
-
+    const commandd = useTerminalStore(
+        (state) => state.commands
+    );
+    console.log("=====>>Message->commandd", commandd);
     useEffect(() => {
         if (commandId) {
             console.log('🖥️ Message component received commandId:', commandId);

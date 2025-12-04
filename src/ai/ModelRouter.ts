@@ -41,7 +41,7 @@ export class ModelRouter {
         }
 
         if (config.apiKeys.gemini) {
-            this.providers.set('gemini', new GeminiProvider(config.apiKeys.gemini));
+            this.providers.set('google', new GeminiProvider(config.apiKeys.gemini));
         }
 
         if (config.apiKeys.openai) {
