@@ -22,7 +22,10 @@ export type ModelCapability =
     | 'refactoring'
     | 'testing'
     | 'documentation'
-    | 'image-to-code';
+    | 'image-to-code'
+    | 'vision'
+    | 'advanced-reasoning'
+    | 'security-analysis';
 
 export interface ModelConfig {
     id: string;

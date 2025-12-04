@@ -70,19 +70,18 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
         provider: 'gemini',
         name: 'Gemini Pro',
         contextWindow: 32768,
-        capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring', 'documentation'],
+        capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring', 'documentation', 'vision'],
         costPerToken: 0,
         averageLatency: 250,
         isLocal: false,
         requiresApiKey: true
     },
 
-
-    // OpenAI Models (Free Tier)
-    'chatgpt-4o': {
-        id: 'chatgpt-4o',
+    // OpenAI Models (Updated 2025)
+    'gpt-4o-mini': {
+        id: 'gpt-4o-mini',
         provider: 'openai',
-        name: 'GPT-4o Free',
+        name: 'GPT-4o Mini',
         contextWindow: 128000,
         capabilities: [
             'code-generation',
@@ -90,28 +89,31 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
             'code-review',
             'explanation',
             'refactoring',
-            'documentation'
+            'documentation',
+            'vision'
         ],
         costPerToken: 0,
-        averageLatency: 300,
+        averageLatency: 150,
         isLocal: false,
         requiresApiKey: true
     },
 
-    'chatgpt-3.5': {
-        id: 'chatgpt-3.5',
+    'gpt-4.1': {
+        id: 'gpt-4.1',
         provider: 'openai',
-        name: 'GPT-3.5 Free',
-        contextWindow: 4096,
+        name: 'GPT-4.1',
+        contextWindow: 128000,
         capabilities: [
             'code-generation',
-            'code-completion',
+            'advanced-reasoning',
             'code-review',
-            'explanation',
-            'refactoring'
+            'testing',
+            'security-analysis',
+            'documentation',
+            'vision'
         ],
-        costPerToken: 0,
-        averageLatency: 200,
+        costPerToken: 0.000003,
+        averageLatency: 300,
         isLocal: false,
         requiresApiKey: true
     },

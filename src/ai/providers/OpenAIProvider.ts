@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { BaseProvider } from './BaseProvider';
 import { AIRequest, AIResponse } from '../../types';
 import { logger } from '../../utils/logger';
+import { MODEL_CONFIGS } from '../../config/models';
 
 type Message = { role: 'user' | 'ai'; content: string };
 
@@ -27,16 +28,28 @@ export class OpenAIProvider extends BaseProvider {
     }
 
     private resolveModel(requestedModel?: string): string {
+        if (!requestedModel) return 'gpt-4o-mini';
+
+        if (MODEL_CONFIGS[requestedModel]) {
+            return requestedModel;
+        }
+
         switch (requestedModel) {
             case 'chatgpt-3.5':
             case 'gpt-3.5-turbo':
-                return 'gpt-3.5-turbo';
+                return 'gpt-3.5';
             case 'chatgpt-4o':
             case 'gpt-4o':
+            case 'gpt-4o-mini':
+                return 'gpt-4o-mini';
+            case 'chatgpt-4.1':
+            case 'gpt-4.1-turbo':
+                return 'gpt-4.1';
             default:
-                return 'chatgpt-4o';
+                return 'gpt-4o-mini';
         }
     }
+
 
     private buildMessages(request: AIRequest): { role: 'user' | 'assistant'; content: string }[] {
         const userMessage: { role: 'user'; content: string } = {

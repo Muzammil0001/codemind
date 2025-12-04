@@ -1,33 +1,33 @@
 export interface ModelConfig {
     value: string;
     label: string;
-    badge: 'Recommended' | 'Fast' | 'Coding' | null;
+    badge: 'Recommended' | 'Fast' | 'Coding' | 'Advanced' | 'Local' | null;
     provider: 'openai' | 'google' | 'anthropic' | 'deepseek' | 'groq';
     apiKeyRequired: boolean;
 }
 
 export const AVAILABLE_MODELS: readonly ModelConfig[] = [
     {
-        value: 'chatgpt-4o',
-        label: 'GPT-4o',
+        value: 'gpt-4o-mini',
+        label: 'GPT-4o Mini',
         badge: 'Recommended',
         provider: 'openai',
         apiKeyRequired: true,
     },
     {
-        value: 'chatgpt-3.5',
-        label: 'GPT-3.5',
+        value: 'gpt-4.1',
+        label: 'GPT-4.1',
+        badge: 'Advanced',
+        provider: 'openai',
+        apiKeyRequired: true,
+    },
+    {
+        value: 'gpt-3.5',
+        label: 'GPT-3.5 Free',
         badge: null,
         provider: 'openai',
         apiKeyRequired: true,
     },
-    // {
-    //     value: 'gemini-flash',
-    //     label: 'Gemini 2.5 Flash',
-    //     badge: 'Fast',
-    //     provider: 'google',
-    //     apiKeyRequired: true,
-    // },
     {
         value: 'gemini-pro',
         label: 'Gemini 2.0 Pro',
@@ -36,8 +36,8 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
         apiKeyRequired: true,
     },
     {
-        value: 'claude-sonnet',
-        label: 'Claude 3.5 Sonnet',
+        value: 'claude-haiku',
+        label: 'Claude Haiku',
         badge: null,
         provider: 'anthropic',
         apiKeyRequired: true,
@@ -56,6 +56,20 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
         provider: 'groq',
         apiKeyRequired: true,
     },
+    {
+        value: 'ollama-local',
+        label: 'Ollama (Local)',
+        badge: 'Local',
+        provider: 'ollama',
+        apiKeyRequired: false,
+    },
+    {
+        value: 'lmstudio-local',
+        label: 'LM Studio (Local)',
+        badge: 'Local',
+        provider: 'lmstudio',
+        apiKeyRequired: false,
+    }
 ] as const;
 
 export const DEFAULT_MODEL = 'gemini-pro';
