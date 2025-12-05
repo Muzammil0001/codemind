@@ -13,7 +13,6 @@ export class ASTParser {
     private treeSitterAvailable = false;
 
     constructor() {
-        // Try to load tree-sitter dynamically
         try {
             this.Parser = require('tree-sitter');
             this.treeSitterAvailable = true;
@@ -147,7 +146,7 @@ export class ASTParser {
             'function_expression',
             'arrow_function',
             'method_definition',
-            'function_definition' // Python
+            'function_definition'
         ];
 
         this.traverseNode(node, (n) => {

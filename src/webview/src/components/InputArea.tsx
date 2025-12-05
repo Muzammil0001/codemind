@@ -274,38 +274,30 @@ export const InputArea: React.FC<InputAreaProps> = ({
         const items = Array.from(e.dataTransfer.items);
         for (const item of items) {
             if (item.kind === 'string' && item.type === 'text/uri-list') {
-                // Handle URI drops (from VS Code file explorer)
                 item.getAsString((uriString) => {
                     try {
                         let filePath = uriString;
 
-                        // Handle different VS Code URI formats
                         if (uriString.startsWith('vscode-file://')) {
-                            // VS Code webview URI format
                             filePath = uriString.replace('vscode-file://', '');
                             filePath = decodeURIComponent(filePath);
                         } else if (uriString.startsWith('file://')) {
-                            // Standard file URI
                             const uri = new URL(uriString);
                             filePath = decodeURIComponent(uri.pathname);
                         }
 
-                        // Remove leading slash on Windows
                         const normalizedPath = filePath.startsWith('/') && /^win/i.test(navigator.platform)
                             ? filePath.slice(1)
                             : filePath;
 
-                        // Try to match against workspace files
                         const workspaceFiles = (availableFiles || []).filter(f => f.type === 'file');
 
-                        // More flexible matching - try filename match first
                         const fileName = normalizedPath.split(/[/\\]/).pop() || normalizedPath;
                         let matchingFile = workspaceFiles.find(f => {
                             const workspaceFileName = f.path.split('/').pop() || f.path;
                             return workspaceFileName === fileName;
                         });
 
-                        // If no filename match, try path match
                         if (!matchingFile) {
                             matchingFile = workspaceFiles.find(f =>
                                 f.path.includes(fileName) || fileName.includes(f.path)
@@ -313,7 +305,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         }
 
                         if (matchingFile) {
-                            // Add as @ reference in text and to attachments
                             setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + matchingFile.path + ' ');
                             if (!(attachedFiles || []).find(f => f.name === matchingFile.path)) {
                                 setAttachedFiles(prev => [...(prev || []), {
@@ -323,7 +314,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                                 }]);
                             }
                         } else {
-                            // If not found in workspace files, create a reference anyway
                             setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + fileName + ' ');
                             setAttachedFiles(prev => [...(prev || []), {
                                 id: Date.now().toString() + Math.random(),
@@ -333,7 +323,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         }
                     } catch (error) {
                         console.warn('Failed to parse dropped URI:', uriString, error);
-                        // As a fallback, try to extract filename and add as reference
                         const fileName = uriString.split(/[/\\]/).pop() || 'unknown';
                         setInput(prev => (prev || '') + (prev ? ' ' : '') + '@' + fileName + ' ');
                     }

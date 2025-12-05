@@ -64,7 +64,6 @@ export class StyleAnalyzer {
                 } else if (line.startsWith(' ')) {
                     spacesCount++;
 
-                    // Count leading spaces
                     const match = line.match(/^( +)/);
                     if (match) {
                         spaceSizes.push(match[1].length);
@@ -123,12 +122,10 @@ export class StyleAnalyzer {
             for (const line of lines) {
                 const trimmed = line.trim();
 
-                // Skip empty lines and comments
                 if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
                     continue;
                 }
 
-                // Check if line ends with semicolon
                 if (trimmed.endsWith(';')) {
                     withSemicolon++;
                 } else if (trimmed.match(/[a-zA-Z0-9)\]}\`]$/)) {
@@ -153,7 +150,6 @@ export class StyleAnalyzer {
         for (const file of files) {
             const text = file.getText();
 
-            // Find variable and function declarations
             const identifiers = text.match(/(?:const|let|var|function)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g);
 
             if (identifiers) {
@@ -173,7 +169,6 @@ export class StyleAnalyzer {
             }
         }
 
-        // Find the most common convention
         let maxCount = 0;
         let convention: keyof typeof conventions = 'camelCase';
 
@@ -194,11 +189,9 @@ export class StyleAnalyzer {
         for (const file of files) {
             const text = file.getText();
 
-            // Count named imports
             const namedImports = (text.match(/import\s*{[^}]+}\s*from/g) || []).length;
             namedCount += namedImports;
 
-            // Count default imports
             const defaultImports = (text.match(/import\s+[a-zA-Z_][a-zA-Z0-9_]*\s+from/g) || []).length;
             defaultCount += defaultImports;
         }

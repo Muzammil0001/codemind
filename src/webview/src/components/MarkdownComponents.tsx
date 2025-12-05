@@ -78,14 +78,12 @@ export const markdownComponents = {
     ),
 
     a: ({ href, children }: any) => {
-        // Check if this is a file path (doesn't start with http:// or https://)
         const isFilePath = href && !href.startsWith('http://') && !href.startsWith('https://');
 
         if (isFilePath) {
             return (
                 <button
                     onClick={() => {
-                        // Post message to VS Code to open the file
                         if (window.vscode) {
                             window.vscode.postMessage({
                                 type: 'openFile',

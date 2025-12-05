@@ -399,7 +399,6 @@ export class ContextBuilder {
     private buildContextPrompt(context: BuiltContext): string {
         let prompt = '';
 
-        // Add project structure
         if (context.projectStructure) {
             prompt += context.projectStructure + '\n\n';
         }

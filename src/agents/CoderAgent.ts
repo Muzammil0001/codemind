@@ -115,7 +115,6 @@ export class CoderAgent extends BaseAgent {
                 }
             }
 
-            // Not awaited — fully background
             Promise.allSettled(backgroundOps);
 
             logger.info(`📊 Summary: ${operationsExecuted}/${operations.length} completed (scripts foreground, files async)`);
@@ -185,7 +184,6 @@ export class CoderAgent extends BaseAgent {
     }> {
         const brainState = projectBrain.getState();
 
-        // Use the new ContextBuilder for comprehensive context
         const { contextBuilder } = await import('../brain/ContextBuilder');
 
         const builtContext = await contextBuilder.buildContext({
@@ -198,7 +196,6 @@ export class CoderAgent extends BaseAgent {
             includeSymbols: true
         });
 
-        // Format relevant files for backward compatibility
         const relevantFiles = builtContext.relevantFiles.map(f =>
             `File: ${f.path}\nLanguage: ${f.language}\nReason: ${f.reason}\n\n${f.content}`
         );
@@ -214,7 +211,6 @@ export class CoderAgent extends BaseAgent {
 
 
     private buildCodingPrompt(task: AgentTask, context: any): string {
-        // Prepend project structure context to the task description
         let enhancedDescription = task.description;
 
         if (context.structureContext) {
@@ -239,7 +235,6 @@ export class CoderAgent extends BaseAgent {
                 const jsonContent = match[1];
                 const parsed = JSON.parse(jsonContent);
 
-                // Handle tool_code format (new)
                 if (parsed.tool_code && parsed.kwargs) {
                     if (parsed.tool_code === 'create_file') {
                         operations.push({
@@ -266,7 +261,6 @@ export class CoderAgent extends BaseAgent {
                         });
                     }
                 }
-                // Handle operation format (old)
                 else if (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move'].includes(parsed.operation)) {
                     operations.push({
                         type: parsed.operation,

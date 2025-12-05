@@ -103,16 +103,13 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         const content = fs.readFileSync(filePath, 'utf8');
         const history = JSON.parse(content);
         if (history.sessions && history.sessions.length > 0) {
-          // Load the most recent session
           const lastSession = history.sessions[0];
           if (this._view) {
-            // First, send the session data
             this._view.webview.postMessage({
               type: 'loadChat',
               data: lastSession
             });
 
-            // Then, make sure the frontend knows this is the current session
             setTimeout(() => {
               if (this._view) {
                 this._view.webview.postMessage({
@@ -466,7 +463,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleModelSelection(model: string) {
-    // Update configuration
     await vscode.workspace.getConfiguration('codemind').update(
       'primaryModel',
       model,
@@ -768,15 +764,10 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
   private _getHtmlForWebview(webview: vscode.Webview) {
-    logger.info('WebviewProvider: Generating HTML for webview');
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.css'));
 
-    logger.info(`WebviewProvider: Script URI: ${scriptUri.toString()}`);
-    logger.info(`WebviewProvider: Style URI: ${styleUri.toString()}`);
-
     const nonce = getNonce();
-    logger.info(`WebviewProvider: Generated nonce for CSP`);
 
     return `<!DOCTYPE html>
       <html lang="en">
@@ -927,7 +918,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       const fullPath = path.join(workspaceRoot, filePath);
 
-      // Security check: ensure path is within workspace
       if (!fullPath.startsWith(workspaceRoot)) {
         throw new Error('Access denied: Path outside workspace');
       }
@@ -964,12 +954,10 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // Resolve the file path relative to workspace root
       const fullPath = path.isAbsolute(filePath)
         ? filePath
         : path.join(workspaceRoot, filePath);
 
-      // Security check: ensure path is within workspace
       if (!fullPath.startsWith(workspaceRoot)) {
         vscode.window.showErrorMessage('Cannot open file outside workspace');
         return;
