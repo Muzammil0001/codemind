@@ -74,7 +74,8 @@ export abstract class BaseAgent {
                 tokensUsed: 0,
                 latency: 0,
                 linesChanged: 0
-            }
+            },
+            commandIds: options.commandIds
         };
     }
 }

@@ -67,8 +67,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       this.fileWatcher.dispose();
     }
 
-    // Watch for all file changes in the workspace
-    // We exclude node_modules and .git to avoid excessive updates
     this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
     const refresh = () => this.debouncedRefresh();
@@ -363,14 +361,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         history.sessions.unshift(session);
       }
 
-      // Limit history to 50 sessions
       if (history.sessions.length > 50) {
         history.sessions = history.sessions.slice(0, 50);
       }
 
       fs.writeFileSync(filePath, JSON.stringify(history, null, 2));
 
-      // Refresh history list for frontend
       await this.handleGetHistory();
     } catch (error) {
       logger.error('Failed to save chat history', error as Error);
@@ -553,7 +549,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       };
 
       logger.info(`WebviewProvider: Executing task ${task.id}`);
-      console.log('🚀 WebviewProvider: Executing task', task.id, 'with agent:', task.type);
 
       const timeoutPromise = new Promise<any>((_, reject) => {
         setTimeout(() => reject(new Error('Request timed out after 30 seconds')), 30000);
@@ -561,19 +556,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       const executionPromise = agentOrchestrator.executeTask(task);
 
-      console.log('⏳ WebviewProvider: Waiting for task execution...');
       const result: any = await Promise.race([executionPromise, timeoutPromise]);
-
-      console.log('✅ WebviewProvider: Task execution completed:', {
-        taskId: task.id,
-        success: result.success,
-        outputLength: result.output?.length || 0,
-        hasCommandIds: !!result.commandIds,
-        commandIds: result.commandIds
-      });
-      logger.info(`WebviewProvider: Task ${task.id} completed with success=${result.success}`);
-      logger.info(`WebviewProvider: Result output length: ${result.output?.length || 0}`);
-
       if (result.success) {
         const responseData = {
           loading: false,
@@ -583,40 +566,36 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           commandId: result.commandIds && result.commandIds.length > 0 ? result.commandIds[0] : undefined
         };
 
-        console.log('📤 WebviewProvider: Sending success response to webview:', {
-          responseLength: responseData.response.length,
-          hasCommandId: !!responseData.commandId,
-          commandId: responseData.commandId
-        });
+        if (responseData.commandId) {
+          const terminalStartedMessage = {
+            type: 'terminalCommandStarted',
+            commandId: responseData.commandId,
+            command: 'Script execution',
+            success: true
+          };
+          this._view.webview.postMessage(terminalStartedMessage);
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
         this._view.webview.postMessage({
           type: 'queryResponse',
           data: responseData
         });
 
-        console.log('✅ WebviewProvider: Success response message posted');
-
-        // Refresh file structure multiple times to ensure newly created/modified files are visible
-        // First refresh - immediate
         setTimeout(() => {
-          console.log('🔄 WebviewProvider: Refreshing file structure (immediate)');
           this.sendStatus();
         }, 100);
 
-        // Second refresh - after a short delay to catch any delayed file system events
         setTimeout(() => {
-          console.log('🔄 WebviewProvider: Refreshing file structure (delayed)');
           this.sendStatus();
         }, 1000);
 
-        // Third refresh - after a longer delay to ensure everything is synced
         setTimeout(() => {
-          console.log('🔄 WebviewProvider: Refreshing file structure (final)');
           this.sendStatus();
         }, 2000);
       } else {
         const errorMessage = result.warnings && result.warnings.length > 0 ? result.warnings[0] : 'Unknown error occurred';
-        console.log('❌ WebviewProvider: Task failed, sending error response:', errorMessage);
 
         this._view.webview.postMessage({
           type: 'queryResponse',
@@ -627,7 +606,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           }
         });
 
-        console.log('✅ WebviewProvider: Error response message posted');
       }
     } catch (error: any) {
       if (signal.aborted || error.message === 'Query was cancelled') {
@@ -656,13 +634,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     let command: string | undefined;
     let cleanQuery = query;
 
-    const fileMatches = query.matchAll(/@([\w\-\.\/\\]+(?:\.[a-zA-Z0-9]+)?)/g);
-    logger.info(`🔍 File reference detection: Found ${Array.from(fileMatches).length} @ references in query`);
-
     const fileMatchesIterator = query.matchAll(/@([\w\-\.\/\\]+(?:\.[a-zA-Z0-9]+)?)/g);
     for (const match of fileMatchesIterator) {
       const fileRef = match[1];
-      logger.info(`📁 Processing @ reference: ${fileRef}`);
       const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (workspaceRoot) {
         let filePath = fileRef;
@@ -671,7 +645,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
         try {
           const possiblePath = path.join(workspaceRoot, fileRef);
-          logger.info(`🔎 Strategy 1 - Workspace relative: Checking ${possiblePath}`);
           if (fs.existsSync(possiblePath)) {
             filePath = possiblePath;
             fileUri = vscode.Uri.file(possiblePath);
@@ -681,9 +654,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             filePath = fileRef;
             fileUri = vscode.Uri.file(fileRef);
             resolutionMethod = 'absolute';
-            logger.info(`✅ Found via absolute path: ${filePath}`);
           } else {
-            logger.info(`🔎 Strategy 3 - Workspace search: Trying patterns for ${fileRef}`);
             const searchPatterns = [
               `**/${fileRef}`,
               `**/*${fileRef}*`,
@@ -691,11 +662,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             ];
 
             for (const pattern of searchPatterns) {
-              logger.info(`  Searching pattern: ${pattern}`);
               const foundFiles = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 5);
               if (foundFiles.length > 0) {
-                logger.info(`  Found ${foundFiles.length} matches for pattern ${pattern}`);
-
                 let bestFile = foundFiles[0];
                 let bestMtime = 0;
 
@@ -905,6 +873,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         this._view.webview.postMessage({
           type: 'terminalCommandStarted',
           commandId: result.commandId,
+          command: command, // Add the actual command string
           success: result.success,
           error: result.error
         });
@@ -1042,7 +1011,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         userQuery
       });
 
-      // Use ModelRouter to analyze with AI
       const aiResponse = await modelRouter.generateCompletion({
         prompt,
         temperature: 0.3,
@@ -1070,7 +1038,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     } catch (error) {
       logger.error('AI command analysis failed', error as Error);
 
-      // Send error response
       if (this._view) {
         this._view.webview.postMessage({
           type: 'commandAnalysisResponse',
@@ -1081,9 +1048,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Handle get settings request
-   */
   private async handleGetSettings(): Promise<void> {
     if (!this._view) return;
 
@@ -1143,7 +1107,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     logger.info(`Relocating terminal for command: ${commandId}`);
 
     try {
-      // Get command details from terminal manager
       const command = terminalManager.getCommand(commandId);
       if (!command) {
         logger.warn(`Command ${commandId} not found in terminal manager`);
@@ -1158,20 +1121,15 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       terminal.show(true);
 
-      // Check if the command is still running in chat terminal
       const process = terminalManager.getProcess(commandId);
       if (process && !process.killed) {
-        // Command is still running - stop background process and restart in main terminal
         logger.info(`Stopping background process for command ${commandId} to relocate to main terminal`);
         terminalManager.stopCommand(commandId);
 
-        // Wait a moment for the process to stop, then restart in main terminal
         setTimeout(() => {
           terminal.sendText(command.command);
-          logger.info(`Restarted running command in main terminal: ${commandId}`);
         }, 500);
       } else {
-        // Command is not running - don't re-run completed commands
         terminal.sendText(`# Command completed in chat terminal`);
         terminal.sendText(`# Command: ${command.command}`);
         terminal.sendText(`# Working directory: ${command.cwd}`);

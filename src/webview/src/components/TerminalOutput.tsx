@@ -10,7 +10,6 @@ interface TerminalOutputProps {
 }
 
 const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutputProps) => {
-    console.log("======>commandId", commandId);
     const outputRef = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -26,7 +25,6 @@ const TerminalOutputComponent = ({ commandId, onStop, onRelocate }: TerminalOutp
     }, [command?.output.length, isCollapsed]);
 
     useLayoutEffect(() => {
-        console.log("======>command", command);
         if (command && (command.status === 'completed' || command.status === 'failed' || command.status === 'stopped')) {
             const timer = setTimeout(() => {
                 setIsCollapsed(true);

@@ -107,42 +107,23 @@ export const MainApp = () => {
                     break;
 
                 case 'queryResponse':
-                    console.log('📨 MainApp: Received queryResponse:', {
-                        loading: message.data.loading,
-                        success: message.data.success,
-                        responseLength: message.data.response?.length || 0,
-                        hasCommandId: !!message.data.commandId,
-                        commandId: message.data.commandId,
-                        message: message
-                    });
 
                     if (message.data.loading) {
-                        console.log('⏳ MainApp: Setting loading state to true');
                         setLoading(true);
                         setAgentStatus('thinking');
                     } else {
-                        console.log('✅ MainApp: Setting loading state to false');
                         setLoading(false);
                         setAgentStatus('idle');
 
                         if (!message.data.success) {
-                            console.log('❌ MainApp: Query failed, showing notification');
                             showNotification(
                                 message.data.response || 'An error occurred',
                                 'error'
                             );
                         }
-                        console.log(' MainApp: Received queryResponse:', message.data);
                         const formattedContent = message.data.success
                             ? formatLLMMessage(message.data.response || '')
                             : `Error: ${message.data.response || 'Unknown error'}`;
-
-                        console.log('💬 MainApp: Adding AI message to chat:', {
-                            contentLength: formattedContent?.length,
-                            hasCommandId: !!message.data.commandId,
-                            commandId: message.data.commandId,
-                            message
-                        });
 
                         if (lastCommandMessageRef.current) {
                             updateMessageContent(lastCommandMessageRef.current.messageId, formattedContent);
@@ -156,8 +137,6 @@ export const MainApp = () => {
                                 commandId: message.data.commandId
                             });
                         }
-
-                        console.log('✅ MainApp: AI message added to chat');
                     }
                     break;
 
@@ -234,7 +213,8 @@ export const MainApp = () => {
                     if (message.commandId && message.command) {
                         if (lastCommandMessageRef.current) {
                             updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
-                        } else if (loading) {
+                            lastCommandMessageRef.current.commandId = message.commandId;
+                        } else {
                             const messageId = addMessage({
                                 role: 'ai',
                                 content: '',
@@ -251,7 +231,15 @@ export const MainApp = () => {
                     }
                     break;
 
-
+                case 'terminalOutput':
+                    if (message.commandId && message.output) {
+                        if (lastCommandMessageRef.current &&
+                            lastCommandMessageRef.current.commandId !== message.commandId) {
+                            updateMessageCommandId(lastCommandMessageRef.current.messageId, message.commandId);
+                            lastCommandMessageRef.current.commandId = message.commandId;
+                        }
+                    }
+                    break;
 
                 case 'terminalStatus':
                     if (message.commandId && message.status) {
