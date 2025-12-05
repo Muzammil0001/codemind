@@ -17,7 +17,6 @@ export class CoderAgent extends BaseAgent {
         const context = await this.buildContext(task);
         const prompt = this.buildCodingPrompt(task, context);
 
-        console.log('🤖 Sending request to AI model...');
         const response = await modelRouter.generateCompletion({
             prompt,
             systemPrompt: PROMPTS.SYSTEM.CODER,
@@ -74,11 +73,10 @@ export class CoderAgent extends BaseAgent {
             }
 
             if (scriptOps.length > 0) {
-                finalResponse += `\n\n**🧠 Running Scripts in Terminal...**\n`;
+                finalResponse += `\n\n**🧠 Running Scripts in Terminal A...**\n`;
             }
 
             logger.info(`🔄 Executing ${operations.length} operation(s)`);
-            console.log(`🔄 Executing ${operations.length} operation(s)`);
 
             const backgroundOps: Promise<void>[] = [];
 
@@ -88,7 +86,7 @@ export class CoderAgent extends BaseAgent {
                         logger.info(`🚀 Executing script: ${op.script}`);
 
                         const result = await terminalManager.executeCommand(op.script, {
-                            location: TerminalLocation.MAIN
+                            location: TerminalLocation.CHAT
                         });
 
                         if (result?.success && result?.commandId) {
@@ -121,7 +119,6 @@ export class CoderAgent extends BaseAgent {
             Promise.allSettled(backgroundOps);
 
             logger.info(`📊 Summary: ${operationsExecuted}/${operations.length} completed (scripts foreground, files async)`);
-            console.log(`📊 Summary: ${operationsExecuted}/${operations.length} completed`);
         } else {
             logger.info('ℹ️ No file operations detected');
         }

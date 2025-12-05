@@ -50,10 +50,6 @@ class Logger {
 
         this.outputChannel.appendLine(logMessage);
 
-        if (process.env.NODE_ENV === 'development') {
-            console.log(logMessage);
-        }
-
         if (level === LogLevel.ERROR) {
             vscode.window.showErrorMessage(`CodeMind AI: ${message}`);
         }

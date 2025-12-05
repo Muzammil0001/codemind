@@ -29,7 +29,7 @@ export function useVSCode() {
                 } catch (e) {
                     console.error('Failed to acquire Editor API:', e);
                     vscodeApi = {
-                        postMessage: (msg: any) => console.log('Editor Message:', msg),
+                        postMessage: (msg: any) => console.log('Catch: Editor Message:', msg),
                         getState: () => ({}),
                         setState: () => { },
                     };

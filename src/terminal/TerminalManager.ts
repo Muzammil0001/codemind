@@ -163,12 +163,12 @@ export class TerminalManager {
             terminalCommand.exitCode = exitCode;
             terminalCommand.endTime = Date.now();
 
-            if (signal === 'SIGTERM' || signal === 'SIGKILL') {
-                terminalCommand.status = CommandStatus.STOPPED;
-                this.notifyComplete(commandId, exitCode, duration, CommandStatus.STOPPED);
-            } else if (exitCode === 0) {
+            if (exitCode === 0) {
                 terminalCommand.status = CommandStatus.COMPLETED;
                 this.notifyComplete(commandId, exitCode, duration, CommandStatus.COMPLETED);
+            } else if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+                terminalCommand.status = CommandStatus.STOPPED;
+                this.notifyComplete(commandId, exitCode, duration, CommandStatus.STOPPED);
             } else {
                 terminalCommand.status = CommandStatus.FAILED;
                 this.notifyComplete(commandId, exitCode, duration, CommandStatus.FAILED);
@@ -394,6 +394,7 @@ export class TerminalManager {
         // Never hide build/script commands - these should always show output
         const neverHidePatterns = [
             /npm\s+/,
+            /npx\s+/,
             /yarn\s+/,
             /pnpm\s+/,
             /bun\s+/,

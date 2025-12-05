@@ -402,7 +402,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     </div>
 
                     <div className="mt-3 text-center">
-                        <p className="text-[8px] lg:text-xs text-zinc-500">
+                        <p className="text-[10px] lg:text-xs text-zinc-500">
                             CodeMind AI can make mistakes. Consider checking important information.
                         </p>
                     </div>
