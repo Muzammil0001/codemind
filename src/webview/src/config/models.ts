@@ -23,7 +23,7 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
     },
     {
         value: 'gemini-pro',
-        label: 'Gemini Pro',
+        label: 'Gemini 2.0 Pro (Free)',
         badge: null,
         provider: 'google',
         apiKeyRequired: true,
@@ -50,22 +50,8 @@ export const AVAILABLE_MODELS: readonly ModelConfig[] = [
         apiKeyRequired: true,
     },
     {
-        value: 'groq-llama-3.1-70b',
-        label: 'LLaMA 3.1 70B',
-        badge: 'Fast',
-        provider: 'groq',
-        apiKeyRequired: true,
-    },
-    {
-        value: 'groq-mixtral-8x7b',
-        label: 'Mixtral 8x7B',
-        badge: null,
-        provider: 'groq',
-        apiKeyRequired: true,
-    },
-    {
-        value: 'groq-llama-3.1-8b',
-        label: 'LLaMA 3.1 8B',
+        value: 'llama-3.1-8b-instant',
+        label: 'Groq LLaMA 3.1 8B (Free)',
         badge: 'Fast',
         provider: 'groq',
         apiKeyRequired: true,

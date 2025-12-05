@@ -9,7 +9,14 @@ export class GroqProvider extends BaseProvider {
     private readonly apiUrl = 'https://api.groq.com/openai/v1';
 
     constructor(apiKey?: string) {
-        super('groq', apiKey);
+        const trimmedKey = apiKey?.trim();
+        super('groq', trimmedKey);
+        if (trimmedKey) {
+            logger.info(`Groq provider initializing with API key: ${trimmedKey.substring(0, 10)}...`);
+            logger.info('✓ Groq provider is available');
+        } else {
+            logger.warn('Groq provider initialized without API key');
+        }
     }
 
     async isAvailable(): Promise<boolean> {

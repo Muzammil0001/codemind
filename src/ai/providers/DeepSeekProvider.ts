@@ -9,7 +9,14 @@ export class DeepSeekProvider extends BaseProvider {
     private readonly apiUrl = 'https://api.deepseek.com/v1';
 
     constructor(apiKey?: string) {
-        super('deepseek', apiKey);
+        const trimmedKey = apiKey?.trim();
+        super('deepseek', trimmedKey);
+        if (trimmedKey) {
+            logger.info(`DeepSeek provider initializing with API key: ${trimmedKey.substring(0, 10)}...`);
+            logger.info('✓ DeepSeek provider is available');
+        } else {
+            logger.warn('DeepSeek provider initialized without API key');
+        }
     }
 
     async isAvailable(): Promise<boolean> {

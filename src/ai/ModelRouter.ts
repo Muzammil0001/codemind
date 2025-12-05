@@ -34,18 +34,30 @@ export class ModelRouter {
 
         if (config.apiKeys.groq) {
             this.providers.set('groq', new GroqProvider(config.apiKeys.groq));
+            logger.info('Groq provider initialized');
+        } else {
+            logger.debug('Groq API key missing');
         }
 
         if (config.apiKeys.deepseek) {
             this.providers.set('deepseek', new DeepSeekProvider(config.apiKeys.deepseek));
+            logger.info('DeepSeek provider initialized');
+        } else {
+            logger.debug('DeepSeek API key missing');
         }
 
         if (config.apiKeys.gemini) {
             this.providers.set('google', new GeminiProvider(config.apiKeys.gemini));
+            logger.info('Gemini provider initialized');
+        } else {
+            logger.debug('Gemini API key missing');
         }
 
         if (config.apiKeys.openai) {
             this.providers.set('openai', new OpenAIProvider(config.apiKeys.openai));
+            logger.info('OpenAI provider initialized');
+        } else {
+            logger.debug('OpenAI API key missing');
         }
 
         if (config.enableLocalModels) {

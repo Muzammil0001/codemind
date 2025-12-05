@@ -8,6 +8,7 @@ import { logger } from '../../utils/logger';
 export class LMStudioProvider extends BaseProvider {
     constructor(baseUrl: string = 'http://localhost:1234') {
         super('lmstudio', undefined, baseUrl);
+        logger.info(`LM Studio provider initializing with base URL: ${baseUrl}`);
     }
 
     async isAvailable(): Promise<boolean> {

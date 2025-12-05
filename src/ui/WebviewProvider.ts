@@ -236,7 +236,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const workspaceFiles = await this.getWorkspaceFilesAndDirectories();
 
     const config = vscode.workspace.getConfiguration('codemind');
-    const activeModel = config.get<string>('primaryModel') || 'gemini-1.5-flash';
+    const activeModel = config.get<string>('primaryModel') || 'gpt-4o-mini';
+
+    logger.info(`WebviewProvider: Sending status with activeModel: ${activeModel}`);
 
     this._view.webview.postMessage({
       type: 'status',
@@ -475,7 +477,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       vscode.ConfigurationTarget.Global
     );
 
-    vscode.window.showInformationMessage(`Primary model set to: ${model}`);
+    vscode.window.showInformationMessage(`Model selected: ${model}`);
   }
 
   private async handleQuery(query: string, modelId?: string) {
@@ -791,6 +793,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     return prompt;
   }
 
+  public refreshWebview() {
+    if (this._view) {
+      this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+      logger.info('WebviewProvider: Webview refreshed with new HTML');
+    }
+  }
   private _getHtmlForWebview(webview: vscode.Webview) {
     logger.info('WebviewProvider: Generating HTML for webview');
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'assets', 'index.js'));

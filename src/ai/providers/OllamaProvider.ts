@@ -8,6 +8,7 @@ import { logger } from '../../utils/logger';
 export class OllamaProvider extends BaseProvider {
     constructor(baseUrl: string = 'http://localhost:11434') {
         super('ollama', undefined, baseUrl);
+        logger.info(`Ollama provider initializing with base URL: ${baseUrl}`);
     }
 
     async isAvailable(): Promise<boolean> {

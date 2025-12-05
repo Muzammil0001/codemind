@@ -6,41 +6,19 @@ import { ModelConfig, ModelProvider, ModelCapability } from '../types';
 
 export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     // Groq Models (Fast & Free)
-    'groq-llama-3.1-70b': {
-        id: 'groq-llama-3.1-70b',
+    'llama-3.1-8b-instant': {
+        id: 'llama-3.1-8b-instant',
         provider: 'groq',
-        name: 'LLaMA 3.1 70B',
+        name: 'Groq LLaMA 3.1 8B (Fast) (Free)',
         contextWindow: 8192,
-        capabilities: ['code-generation', 'code-completion', 'explanation', 'refactoring', 'documentation'],
-        costPerToken: 0,
-        averageLatency: 150,
-        isLocal: false,
-        requiresApiKey: true
-    },
-    'groq-mixtral-8x7b': {
-        id: 'groq-mixtral-8x7b',
-        provider: 'groq',
-        name: 'Mixtral 8x7B',
-        contextWindow: 32768,
-        capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring'],
-        costPerToken: 0,
-        averageLatency: 180,
-        isLocal: false,
-        requiresApiKey: true
-    },
-    'groq-llama-3.1-8b': {
-        id: 'groq-llama-3.1-8b',
-        provider: 'groq',
-        name: 'LLaMA 3.1 8B (Fast)',
-        contextWindow: 8192,
-        capabilities: ['code-completion', 'explanation'],
+        capabilities: ['code-completion', 'explanation', 'code-generation'],
         costPerToken: 0,
         averageLatency: 80,
         isLocal: false,
         requiresApiKey: true
     },
 
-    // DeepSeek Models (Code-Specialized & Free)
+    // DeepSeek Models (Code-Specialized)
     'deepseek-coder': {
         id: 'deepseek-coder',
         provider: 'deepseek',
@@ -68,7 +46,7 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     'gemini-pro': {
         id: 'gemini-pro',
         provider: 'google',
-        name: 'Gemini Pro',
+        name: 'Gemini Pro (Free)',
         contextWindow: 32768,
         capabilities: ['code-generation', 'code-review', 'explanation', 'refactoring', 'documentation', 'vision'],
         costPerToken: 0,

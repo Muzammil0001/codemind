@@ -33,6 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await memoryEngine.initialize(workspaceRoot);
         }
 
+        // Register Webview Panel
         const webviewProvider = new WebviewProvider(context.extensionUri);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(
@@ -41,11 +42,27 @@ export async function activate(context: vscode.ExtensionContext) {
             )
         );
 
+        setTimeout(() => {
+            webviewProvider.refreshWebview();
+            logger.info('CodeMind AI: Webview refreshed after activation');
+        }, 500);
+
         context.subscriptions.push(
             vscode.languages.registerInlineCompletionItemProvider(
                 { pattern: '**' },
                 inlineSuggestionProvider
             )
+        );
+
+        // Listen for configuration changes
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(async e => {
+                if (e.affectsConfiguration('codemind')) {
+                    configManager.refresh();
+                    modelRouter.refreshProviders();
+                    logger.info('Configuration updated, providers refreshed');
+                }
+            })
         );
 
         registerCommands(context);
