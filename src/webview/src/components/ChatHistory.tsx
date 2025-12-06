@@ -5,6 +5,13 @@ import { Brain, History, Plus, Settings } from 'lucide-react';
 
 type AgentStatus = 'idle' | 'thinking' | 'planning' | 'running' | 'executing';
 
+interface ImageAttachment {
+    id: string;
+    name: string;
+    data: string;
+    mimeType: string;
+}
+
 interface ChatHistoryProps {
     messages: Array<{
         role: 'user' | 'ai';
@@ -13,6 +20,8 @@ interface ChatHistoryProps {
         steps?: any[];
         thoughtProcess?: string;
         isThinking?: boolean;
+        images?: ImageAttachment[];
+        generatedImages?: any[];
     }>;
     agentStatus: AgentStatus;
     onEdit: (index: number) => void;
@@ -90,6 +99,8 @@ export const ChatHistory: React.FC<ChatHistoryProps & { children?: React.ReactNo
                         steps={msg.steps}
                         thoughtProcess={msg.thoughtProcess}
                         isThinking={msg.isThinking}
+                        images={msg.images}
+                        generatedImages={msg.generatedImages}
                     />
                 ))}
                 {agentStatus !== 'idle' && (

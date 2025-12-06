@@ -1,5 +1,4 @@
 
-
 export const PROMPTS = {
 
     SYSTEM: {
@@ -57,6 +56,10 @@ export const PROMPTS = {
         - delete: {"operation": "delete", "path": "..."}
         - rename: {"operation": "rename", "path": "old/path", "newPath": "new/path"}
         - run_script: {"operation": "run_script", "script": "npm run build"}
+        - generate_image: {"tool_code": "generate_image", "kwargs": {"prompt": "description of image", "filename": "image-name", "width": 512, "height": 512}}
+        
+        **IMAGE GENERATION CAPABILITY:**
+        You have the capability to generate images. Use the \`generate_image\` tool when the user asks for a diagram, wireframe, flow chart, or any visual representation. Example requests: "generate image", "draw diagram", "visualize flow".
         
         ## Response Format
         - For file fixes: "I found the issue in [filename]. The problem is [description]. I'll fix it by [solution]."
@@ -85,7 +88,7 @@ Guidelines:
 5. Be concise and professional.
 6. Don't add comments in code snippets until user request to add comments.
 7. Wrap the response's code block in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.
-8. Wrap only the code in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.`,
+8. Wrap only the code in \`\`\` or \`\`\`\`\`\` when there is code block otherwise if there is no code block then don't wrap the response in a code block.`
     },
 
     COMMAND_ANALYSIS: (params: {
@@ -130,10 +133,8 @@ Guidelines:
 
 Examples:
 - "run build" → {"isCommand": true, "command": "npm run build", "type": "build", ...}
-- "delete package.json" → {"isCommand": true, "command": "${params.platform === 'windows' ? 'del package.json' : 'rm package.json'}", "type": "remove", "requiresConfirmation": true, "riskLevel": "dangerous", ...}
-- "delete myfolder" → {"isCommand": true, "command": "${params.platform === 'windows' ? 'rmdir /s /q myfolder' : 'rm -rf myfolder'}", "type": "remove", "requiresConfirmation": true, "riskLevel": "dangerous", ...}
-- "show me main.ts" → {"isCommand": true, "command": "${params.platform === 'windows' ? 'type main.ts' : 'cat main.ts'}", "type": "cat", ...}
-- "explain how auth works" → {"isCommand": false, ...}
+- "delete package.json" → {"isCommand": true, "command": "rm package.json", "type": "remove", "requiresConfirmation": true, "riskLevel": "dangerous", ...}
+- "explain how auth works" → { "isCommand": false, ... }
 
 Respond ONLY with the JSON object, no additional text.`,
 
@@ -142,14 +143,14 @@ Respond ONLY with the JSON object, no additional text.`,
         frameworks?: string;
         currentCode?: string;
     }) => {
-        let prompt = `Task: ${params.description}\n\n`;
+        let prompt = `Task: ${params.description} \n\n`;
 
         if (params.frameworks) {
-            prompt += `Project uses: ${params.frameworks}\n\n`;
+            prompt += `Project uses: ${params.frameworks} \n\n`;
         }
 
         if (params.currentCode) {
-            prompt += `Current code:\n\`\`\`\n${params.currentCode}\n\`\`\`\n\n`;
+            prompt += `Current code: \n\`\`\`\n${params.currentCode}\n\`\`\`\n\n`;
         }
 
         prompt += `Requirements:\n`;

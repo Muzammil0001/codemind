@@ -5,7 +5,7 @@ import { ModelSelector } from './ModelSelector';
 import { FileAttachmentButtons } from './FileAttachmentButtons';
 import { SendStopButton } from './SendStopButton';
 import { ChatTextArea } from './ChatTextArea';
-import { DEFAULT_MODEL } from '../config/models';
+import { DEFAULT_MODEL, modelSupportsVision } from '../config/models';
 
 export interface AttachedItem {
     id: string;
@@ -373,6 +373,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                                 <FileAttachmentButtons
                                     onFileClick={() => fileInputRef.current?.click()}
                                     onImageClick={() => imageInputRef.current?.click()}
+                                    visionEnabled={modelSupportsVision(selectedModel)}
                                 />
 
                                 <ModelSelector

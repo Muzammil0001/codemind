@@ -50,13 +50,46 @@ export class OpenAIProvider extends BaseProvider {
         }
     }
 
+    private buildMessages(request: AIRequest): any[] {
+        const textContent = this.buildPrompt(request);
 
-    private buildMessages(request: AIRequest): { role: 'user' | 'assistant'; content: string }[] {
-        const userMessage: { role: 'user'; content: string } = {
+        if (request.images && request.images.length > 0) {
+            const content: any[] = [];
+
+            for (const image of request.images) {
+                let imageUrl = image.data;
+
+                if (!imageUrl.startsWith('data:')) {
+                    imageUrl = `data:${image.mimeType};base64,${image.data}`;
+                }
+
+                content.push({
+                    type: 'image_url',
+                    image_url: {
+                        url: imageUrl,
+                        detail: 'auto'
+                    }
+                });
+            }
+
+            // Add text content
+            content.push({
+                type: 'text',
+                text: textContent
+            });
+
+            logger.info(`OpenAI: Added ${request.images.length} image(s) to request`);
+
+            return [{
+                role: 'user',
+                content: content
+            }];
+        }
+
+        return [{
             role: 'user',
-            content: this.buildPrompt(request)
-        };
-        return [userMessage];
+            content: textContent
+        }];
     }
 
     async generateCompletion(request: AIRequest): Promise<AIResponse> {
@@ -74,6 +107,8 @@ export class OpenAIProvider extends BaseProvider {
         const content = (completion.choices[0].message as any)?.content || '';
         const latency = Date.now() - startTime;
         const tokensUsed = this.estimateTokens(content);
+
+        logger.info(`OpenAI completion generated in ${latency}ms using ${modelName}${request.images?.length ? ` with ${request.images.length} image(s)` : ''}`);
 
         return this.createResponse(content, modelName, tokensUsed, latency);
     }
@@ -102,6 +137,8 @@ export class OpenAIProvider extends BaseProvider {
 
         const latency = Date.now() - startTime;
         const tokensUsed = this.estimateTokens(fullContent);
+
+        logger.info(`OpenAI streaming completed in ${latency}ms using ${modelName}${request.images?.length ? ` with ${request.images.length} image(s)` : ''}`);
 
         return this.createResponse(fullContent, modelName, tokensUsed, latency);
     }

@@ -17,12 +17,17 @@ export class CoderAgent extends BaseAgent {
         const context = await this.buildContext(task);
         const prompt = this.buildCodingPrompt(task, context);
 
+        if (task.context.images && task.context.images.length > 0) {
+            logger.info(`CoderAgent: Processing ${task.context.images.length} image(s) for vision analysis`);
+        }
+
         const response = await modelRouter.generateCompletion({
             prompt,
             systemPrompt: PROMPTS.SYSTEM.CODER,
             context: [context.fullContext],
             maxTokens: 3000,
-            model: task.context.modelId
+            model: task.context.modelId,
+            images: task.context.images // Pass images for vision models
         }, 'code-generation');
 
 
@@ -99,6 +104,22 @@ export class CoderAgent extends BaseAgent {
                         logger.error(`❌ Script execution failed: ${op.script}`, err as Error);
                     }
 
+                } else if (op.type === 'generate_image') {
+                    try {
+                        logger.info(`🎨 Generating image: ${op.prompt}`);
+
+                       finalResponse += `\n\n@@image_generation@@${JSON.stringify({
+                            prompt: op.prompt,
+                            filename: op.filename,
+                            width: op.width,
+                            height: op.height
+                        })}@@\n\n`;
+
+                        operationsExecuted++;
+                    } catch (err) {
+                        logger.error(`❌ Image generation failed: ${op.prompt}`, err as Error);
+                    }
+
                 } else {
                     logger.info(`⚙️ Background ${op.type} on: ${op.path}`);
 
@@ -152,29 +173,6 @@ export class CoderAgent extends BaseAgent {
         };
     }
 
-    private removeOperationJsonBlocks(response: string): string {
-        return response.replace(/```json\s*\n([\s\S]*?)\n```/g, (match, jsonContent) => {
-            try {
-                const parsed = JSON.parse(jsonContent);
-
-                const isOldFormatOp =
-                    parsed.operation &&
-                    ['create', 'modify', 'delete', 'rename', 'move', 'run_script'].includes(parsed.operation);
-
-                const isToolCodeOp =
-                    parsed.tool_code &&
-                    ['create_file', 'modify_file', 'delete_file', 'rename_file', 'move_file', 'run_script'].includes(parsed.tool_code);
-
-                if (isOldFormatOp || isToolCodeOp) {
-                    return '';
-                }
-            } catch {
-            }
-            return match;
-        });
-    }
-
-
     private async buildContext(task: AgentTask): Promise<{
         relevantFiles: string[];
         frameworks: string[];
@@ -209,7 +207,6 @@ export class CoderAgent extends BaseAgent {
         };
     }
 
-
     private buildCodingPrompt(task: AgentTask, context: any): string {
         let enhancedDescription = task.description;
 
@@ -227,7 +224,7 @@ export class CoderAgent extends BaseAgent {
     private extractFileOperations(response: string): any[] {
         const operations: any[] = [];
 
-        const jsonBlockRegex = /```json\s*\n([\s\S]*?)\n```/g;
+        const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
         let match;
 
         while ((match = jsonBlockRegex.exec(response)) !== null) {
@@ -259,20 +256,39 @@ export class CoderAgent extends BaseAgent {
                             path: parsed.kwargs.file_path || parsed.kwargs.old_path,
                             newPath: parsed.kwargs.new_path
                         });
+                    } else if (parsed.tool_code === 'generate_image') {
+                        operations.push({
+                            type: 'generate_image',
+                            prompt: parsed.kwargs.prompt,
+                            filename: parsed.kwargs.filename,
+                            width: parsed.kwargs.width,
+                            height: parsed.kwargs.height
+                        });
+                    } else if (parsed.tool_code === 'run_script') {
+                        operations.push({
+                            type: 'run_script',
+                            script: parsed.kwargs.script
+                        });
                     }
                 }
-                else if (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move'].includes(parsed.operation)) {
-                    operations.push({
-                        type: parsed.operation,
-                        path: parsed.path,
-                        content: parsed.content,
-                        newPath: parsed.newPath
-                    });
-                } else if (parsed.operation === 'run_script') {
-                    operations.push({
-                        type: 'run_script',
-                        script: parsed.script
-                    });
+                else if (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move', 'run_script', 'generate_image'].includes(parsed.operation)) {
+                    if (parsed.operation === 'generate_image') {
+                        operations.push({
+                            type: 'generate_image',
+                            prompt: parsed.kwargs?.prompt || parsed.prompt,
+                            filename: parsed.kwargs?.filename || parsed.filename,
+                            width: parsed.kwargs?.width || parsed.width,
+                            height: parsed.kwargs?.height || parsed.height
+                        });
+                    } else {
+                        operations.push({
+                            type: parsed.operation,
+                            path: parsed.path,
+                            content: parsed.content,
+                            newPath: parsed.newPath,
+                            script: parsed.script
+                        });
+                    }
                 }
             } catch (error) {
                 continue;
@@ -280,6 +296,24 @@ export class CoderAgent extends BaseAgent {
         }
 
         return operations;
+    }
+
+    private removeOperationJsonBlocks(response: string): string {
+        // Same permissive regex as extraction
+        return response.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, (match, jsonContent) => {
+            try {
+                const parsed = JSON.parse(jsonContent);
+
+                // check if it is a valid operation JSON
+                const isOp = (parsed.operation && ['create', 'modify', 'delete', 'rename', 'move', 'run_script', 'generate_image'].includes(parsed.operation)) ||
+                    (parsed.tool_code && ['create_file', 'modify_file', 'delete_file', 'rename_file', 'move_file', 'run_script', 'generate_image'].includes(parsed.tool_code));
+
+                if (isOp) {
+                    return ''; 
+                }
+            } catch {}
+            return match;
+        });
     }
 
     private extractCode(response: string): string {

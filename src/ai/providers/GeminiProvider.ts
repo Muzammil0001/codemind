@@ -61,22 +61,49 @@ export class GeminiProvider extends BaseProvider {
         try {
             let modelName = request.model;
             if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
-                modelName = 'gemini-2.5-flash';
+                modelName = 'gemini-2.0-flash';
             }
 
             const model = this.client.getGenerativeModel({
                 model: modelName
             });
 
-            const prompt = this.buildPrompt(request);
-            const result = await model.generateContent(prompt);
+            const parts: any[] = [];
+
+            if (request.images && request.images.length > 0) {
+                for (const image of request.images) {
+                    let base64Data = image.data;
+                    let mimeType = image.mimeType;
+
+                    if (base64Data.startsWith('data:')) {
+                        const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+                        if (matches) {
+                            mimeType = matches[1];
+                            base64Data = matches[2];
+                        }
+                    }
+
+                    parts.push({
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64Data
+                        }
+                    });
+                }
+                logger.info(`Gemini: Added ${request.images.length} image(s) to request`);
+            }
+
+            const textPrompt = this.buildPrompt(request);
+            parts.push({ text: textPrompt });
+
+            const result = await model.generateContent(parts);
             const response = await result.response;
             const content = response.text();
 
             const latency = Date.now() - startTime;
             const tokensUsed = this.estimateTokens(content);
 
-            logger.info(`Gemini completion generated in ${latency}ms using ${modelName}`);
+            logger.info(`Gemini completion generated in ${latency}ms using ${modelName}${request.images?.length ? ` with ${request.images.length} image(s)` : ''}`);
 
             return this.createResponse(
                 content,
@@ -104,16 +131,44 @@ export class GeminiProvider extends BaseProvider {
 
         try {
             let modelName = request.model;
+            // Use gemini-2.0-flash which supports vision by default
             if (!modelName || modelName === 'gemini-pro' || modelName === 'gemini-pro-vision' || modelName === 'gemini-1.5-flash') {
-                modelName = 'gemini-2.5-flash';
+                modelName = 'gemini-2.0-flash';
             }
 
             const model = this.client.getGenerativeModel({
                 model: modelName
             });
 
-            const prompt = this.buildPrompt(request);
-            const result = await model.generateContentStream(prompt);
+            const parts: any[] = [];
+
+            if (request.images && request.images.length > 0) {
+                for (const image of request.images) {
+                    let base64Data = image.data;
+                    let mimeType = image.mimeType;
+
+                    if (base64Data.startsWith('data:')) {
+                        const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+                        if (matches) {
+                            mimeType = matches[1];
+                            base64Data = matches[2];
+                        }
+                    }
+
+                    parts.push({
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64Data
+                        }
+                    });
+                }
+                logger.info(`Gemini streaming: Added ${request.images.length} image(s) to request`);
+            }
+
+            const textPrompt = this.buildPrompt(request);
+            parts.push({ text: textPrompt });
+
+            const result = await model.generateContentStream(parts);
 
             for await (const chunk of result.stream) {
                 if (signal?.aborted) {
@@ -129,7 +184,7 @@ export class GeminiProvider extends BaseProvider {
             const latency = Date.now() - startTime;
             const tokensUsed = this.estimateTokens(fullContent);
 
-            logger.info(`Gemini streaming completed in ${latency}ms using ${modelName}`);
+            logger.info(`Gemini streaming completed in ${latency}ms using ${modelName}${request.images?.length ? ` with ${request.images.length} image(s)` : ''}`);
 
             return this.createResponse(
                 fullContent,

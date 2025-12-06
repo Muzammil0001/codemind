@@ -107,6 +107,7 @@ export const MainApp = () => {
                     break;
 
                 case 'queryResponse':
+                    console.log('🔄 Query response:', message.data);
 
                     if (message.data.loading) {
                         setLoading(true);
@@ -126,7 +127,11 @@ export const MainApp = () => {
                             : `Error: ${message.data.response || 'Unknown error'}`;
 
                         if (lastCommandMessageRef.current) {
-                            updateMessageContent(lastCommandMessageRef.current.messageId, formattedContent);
+                            updateMessageContent(
+                                lastCommandMessageRef.current.messageId,
+                                formattedContent,
+                                message.data.generatedImages
+                            );
                             if (message.data.commandId) {
                                 updateMessageCommandId(lastCommandMessageRef.current.messageId, message.data.commandId);
                             }
@@ -134,7 +139,8 @@ export const MainApp = () => {
                             addMessage({
                                 role: 'ai',
                                 content: formattedContent,
-                                commandId: message.data.commandId
+                                commandId: message.data.commandId,
+                                generatedImages: message.data.generatedImages
                             });
                         }
                     }
@@ -335,7 +341,23 @@ export const MainApp = () => {
 
     const handleSend = async (text: string, files: AttachedItem[]) => {
         lastCommandMessageRef.current = null;
-        addMessage({ role: 'user', content: text });
+
+        const imageAttachments = files
+            .filter(f => f.type === 'image' && f.data)
+            .map(f => ({
+                id: f.id,
+                name: f.name,
+                data: f.data!,
+                mimeType: f.data!.startsWith('data:')
+                    ? (f.data!.match(/^data:([^;]+);/)?.[1] || 'image/png')
+                    : 'image/png'
+            }));
+
+        addMessage({
+            role: 'user',
+            content: text,
+            images: imageAttachments.length > 0 ? imageAttachments : undefined
+        });
         setLoading(true);
         setAgentStatus('thinking');
 

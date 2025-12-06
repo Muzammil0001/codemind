@@ -158,7 +158,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           break;
         case 'executeQuery':
           logger.info('WebviewProvider: Execute query command received');
-          await this.handleQuery(message.query, message.model);
+          await this.handleQuery(message.query, message.model, message.files);
           break;
         case 'saveChat':
           await this.handleSaveChat(message.session);
@@ -178,6 +178,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         case 'runCommand':
           // Handle runCommand from frontend (useTerminal hook)
           await this.handleExecuteTerminalCommand(message.command, message.cwd, 'chat', message.commandId);
+          break;
+        case 'saveImage':
+          await this.handleSaveImage(message.data, message.filename);
           break;
         case 'executeTerminalCommand':
           await this.handleExecuteTerminalCommand(message.command, message.cwd, message.location, message.commandId);
@@ -472,8 +475,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     vscode.window.showInformationMessage(`Model selected: ${model}`);
   }
 
-  private async handleQuery(query: string, modelId?: string) {
-    logger.info(`WebviewProvider: Handling query: "${query}" with model: ${modelId}`);
+  private async handleQuery(query: string, modelId?: string, attachedFiles?: Array<{ id: string; name: string; type: 'file' | 'image'; data?: string }>) {
+    logger.info(`WebviewProvider: Handling query: "${query}" with model: ${modelId}, attachedFiles: ${attachedFiles?.length || 0}`);
 
     if (!this._view) {
       logger.error('WebviewProvider: View is undefined');
@@ -501,6 +504,27 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       logger.info('WebviewProvider: Parsing query...');
       const { cleanQuery, files, command } = await this.parseQuery(query);
       logger.info(`WebviewProvider: Parsed query. Command: ${command}, Files: ${files.length}`);
+
+      const images: Array<{ data: string; mimeType: string; name?: string }> = [];
+      if (attachedFiles) {
+        for (const file of attachedFiles) {
+          if (file.type === 'image' && file.data) {
+            let mimeType = 'image/png';
+            if (file.data.startsWith('data:')) {
+              const matches = file.data.match(/^data:([^;]+);/);
+              if (matches) {
+                mimeType = matches[1];
+              }
+            }
+            images.push({
+              data: file.data,
+              mimeType: mimeType,
+              name: file.name
+            });
+            logger.info(`WebviewProvider: Added image attachment: ${file.name} (${mimeType})`);
+          }
+        }
+      }
 
       let agentType: any = 'coder';
       if (command) {
@@ -537,7 +561,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         context: {
           files: files.map(f => f.path),
           userPrompt: this.buildPromptWithFiles(cleanQuery, files),
-          modelId: modelId
+          modelId: modelId,
+          images: images.length > 0 ? images : undefined // Pass images for vision models
         },
         priority: 1,
         status: 'pending',
@@ -554,12 +579,42 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
       const result: any = await Promise.race([executionPromise, timeoutPromise]);
       if (result.success) {
+        let outputText = result.output || 'Query completed successfully';
+        const generatedImages: any[] = [];
+
+        const imageGenRegex = /@@image_generation@@([\s\S]*?)@@/g;
+        let match;
+        logger.info(`🔍 Scanning output for image markers. Length: ${outputText.length}`);
+
+        while ((match = imageGenRegex.exec(outputText)) !== null) {
+          try {
+            logger.info('🎯 Found image generation marker');
+            const imageData = JSON.parse(match[1]);
+            const promptEncoded = encodeURIComponent(imageData.prompt);
+            generatedImages.push({
+              id: `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              prompt: imageData.prompt,
+              url: `https://image.pollinations.ai/prompt/${promptEncoded}?width=${imageData.width || 512}&height=${imageData.height || 512}&nologo=true`,
+              isLoading: false, // URL is ready immediately
+              filename: imageData.filename
+            });
+            logger.info(`✅ Generated image URL: ${generatedImages[generatedImages.length - 1].url}`);
+          } catch (e) {
+            logger.error('Failed to parse image generation data', e as Error);
+          }
+        }
+
+        // Remove markers from output
+        outputText = outputText.replace(imageGenRegex, '');
+        logger.info(`📤 Sending response with ${generatedImages.length} images`);
+
         const responseData = {
           loading: false,
-          response: result.output || 'Query completed successfully',
+          response: outputText,
           success: true,
           referencedFiles: files,
-          commandId: result.commandIds && result.commandIds.length > 0 ? result.commandIds[0] : undefined
+          commandId: result.commandIds && result.commandIds.length > 0 ? result.commandIds[0] : undefined,
+          generatedImages: generatedImages.length > 0 ? generatedImages : undefined
         };
 
         if (responseData.commandId) {
@@ -773,7 +828,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
       <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; script-src-elem 'nonce-${nonce}'; connect-src ${webview.cspSource};">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; script-src-elem 'nonce-${nonce}'; connect-src ${webview.cspSource}; img-src ${webview.cspSource} data: https:;">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="${styleUri}" rel="stylesheet">
         <title>CodeMind AI</title>
@@ -1156,6 +1211,60 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           error: (error as Error).message
         });
       }
+    }
+  }
+
+  private async handleSaveImage(base64Data: string, filename: string) {
+    try {
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        throw new Error('No workspace open');
+      }
+
+      const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+      const fs = require('fs');
+      const path = require('path');
+
+      // Determine assets directory
+      const possibleDirs = ['public', 'assets', 'src/assets', 'resources', 'images'];
+      let assetDir = path.join(rootPath, 'public'); // Default
+
+      for (const dir of possibleDirs) {
+        const fullPath = path.join(rootPath, dir);
+        if (fs.existsSync(fullPath)) {
+          assetDir = fullPath;
+          break;
+        }
+      }
+
+      if (!fs.existsSync(assetDir)) {
+        fs.mkdirSync(assetDir, { recursive: true });
+      }
+
+      // Ensure filename has webp extension
+      if (!filename.endsWith('.webp')) {
+        filename += '.webp';
+      }
+
+      const filePath = path.join(assetDir, filename);
+
+      let buffer: Buffer;
+
+      if (base64Data.startsWith('http')) {
+        const axios = require('axios');
+        const response = await axios.get(base64Data, { responseType: 'arraybuffer' });
+        buffer = Buffer.from(response.data);
+      } else {
+        buffer = Buffer.from(base64Data, 'base64');
+      }
+
+      fs.writeFileSync(filePath, buffer);
+
+      vscode.window.showInformationMessage(`Image saved to ${path.relative(rootPath, filePath)}`);
+      logger.info(`Saved generated image to ${filePath}`);
+
+    } catch (error) {
+      logger.error('Failed to save image', error as Error);
+      vscode.window.showErrorMessage(`Failed to save image: ${(error as Error).message}`);
     }
   }
 }

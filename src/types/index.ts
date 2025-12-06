@@ -39,6 +39,12 @@ export interface ModelConfig {
     requiresApiKey: boolean;
 }
 
+export interface ImageAttachment {
+    data: string; 
+    mimeType: string; 
+    name?: string; 
+}
+
 export interface AIRequest {
     prompt: string;
     systemPrompt?: string;
@@ -47,6 +53,7 @@ export interface AIRequest {
     temperature?: number;
     stream?: boolean;
     model?: string;
+    images?: ImageAttachment[]; 
 }
 
 export interface AIResponse {
@@ -257,6 +264,7 @@ export interface TaskContext {
     projectBrain?: ProjectBrainState;
     relatedTasks?: string[];
     modelId?: string;
+    images?: ImageAttachment[]; 
 }
 
 export interface AgentResult {
